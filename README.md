@@ -1,11 +1,20 @@
-<div align="center">
+# ELOS Evidence Kernel
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A pure TypeScript evidence kernel for ELOS (Milestone A).
 
-  <h1>Built with AI Studio</h2>
+## Setup & Running
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+Install dependencies:
+```bash
+npm install
+```
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+Run test suite:
+```bash
+npm test
+```
 
-</div>
+Run type check / linter:
+```bash
+npm run lint
+```

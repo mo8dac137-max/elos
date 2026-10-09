@@ -1,0 +1,16 @@
+{
+  "name": "elos-kernel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build && node dev-server.js",
+    "test": "tsx --test tests/kernel.test.ts tests/admissibility.test.ts tests/sync.test.ts tests/app.test.ts",
+    "lint": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^7.0.2"
+  }
+}
