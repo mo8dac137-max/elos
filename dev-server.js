@@ -56,6 +56,7 @@ const server = http.createServer((req, res) => {
       const headers = { 'Content-Type': contentType };
       if (rootFileName === 'sw.js') {
         headers['Service-Worker-Allowed'] = '/';
+        headers['Cache-Control'] = 'no-cache';
       }
       const content = fs.readFileSync(filePath);
       res.writeHead(200, headers);

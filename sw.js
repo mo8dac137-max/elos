@@ -1,74 +1,106 @@
-const CACHE_NAME = 'elos-cache-v1';
-
-const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/dist/ui/main.js',
-  '/dist/ui/indexedDbStore.js',
-  '/dist/app/index.js',
-  '/dist/app/exercises.js',
-  '/dist/app/storage.js',
-  '/dist/kernel/index.js',
-  '/dist/kernel/admissibility.js',
-  '/dist/kernel/sync.js',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon-maskable-512.png',
-  '/apple-touch-icon.png',
+// Service worker template for ELOS PWA
+const CACHE_NAME = 'elos-ad4d4578a12e';
+const PRECACHE = [
+  "/",
+  "/apple-touch-icon.png",
+  "/dist/app/exercises.js",
+  "/dist/app/index.js",
+  "/dist/app/storage.js",
+  "/dist/content/types.js",
+  "/dist/content/units/comparatives.js",
+  "/dist/content/units/do-does-did.js",
+  "/dist/content/units/go-went-gone.js",
+  "/dist/content/units/modals-basic.js",
+  "/dist/content/units/much-many.js",
+  "/dist/content/units/past-simple.js",
+  "/dist/content/units/prepositions-time.js",
+  "/dist/content/units/present-perfect-basic.js",
+  "/dist/kernel/admissibility.js",
+  "/dist/kernel/index.js",
+  "/dist/kernel/sync.js",
+  "/dist/ui/indexedDbStore.js",
+  "/dist/ui/main.js",
+  "/dist/ui/pwa.js",
+  "/dist/ui/screens/clipboard.js",
+  "/dist/ui/screens/corrupt.js",
+  "/dist/ui/screens/exerciseCard.js",
+  "/dist/ui/screens/statusBlock.js",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+  "/index.html",
+  "/manifest.webmanifest"
 ];
 
-self.addEventListener('install', event => {
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(PRECACHE_ASSETS).catch(err => {
-        console.warn('Precache warning:', err);
-      });
-    }).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE))
+      .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', event => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== CACHE_NAME)
+            .map((k) => caches.delete(k))
+        )
+      )
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', event => {
+self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET') return;
+  if (req.method !== 'GET') {
+    return;
+  }
 
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) {
+    return;
+  }
 
-  // Navigation requests: try network, fall back to cached index.html
+  // Navigation requests: respond with the cached "/index.html" from CACHE_NAME (network only if it is missing)
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match('/index.html');
+        if (cached) {
+          return cached;
+        }
+        return fetch(req).catch(() => {
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+          });
+        });
       })
     );
     return;
   }
 
-  // Static assets: cache-first with network fallback and background refresh
+  // All other requests: CACHE-FIRST from CACHE_NAME only (no runtime caching); on a miss use network; if network fails return 503
   event.respondWith(
-    caches.match(req).then(cached => {
-      const fetchPromise = fetch(req).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200) {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Network failed; if we had a cache entry, it was already returned
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(req);
+      if (cached) {
+        return cached;
+      }
+      return fetch(req).catch(() => {
+        return new Response('Offline', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
       });
-
-      return cached || fetchPromise;
     })
   );
 });

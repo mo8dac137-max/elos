@@ -19,6 +19,7 @@ export interface Exercise {
   answer: string;
 }
 
+// Exactly the 8 items for grammar:go-went-gone
 export const EXERCISE_BANK: Exercise[] = [
   {
     id: 'r1',
@@ -151,27 +152,25 @@ export function buildEvidenceEvent(
   return event;
 }
 
-/**
- * TEMPORARY stub planner for Milestone D.
- * Note: This is a TEMPORARY stub and is NOT the final planner.
- */
 export function pickNextItem(
   state: ClientState,
   bank: Exercise[],
   lastItemId: string | null
 ): Exercise {
   const targetUnitId = bank[0]?.unit_id ?? 'grammar:go-went-gone';
-  // 86400000 ms is a placeholder HYPOTHESIS
+  const unitBank = bank.filter((b) => b.unit_id === targetUnitId);
+  const activeBank = unitBank.length > 0 ? unitBank : bank;
+
   const derived = deriveFromClient(state, targetUnitId, { minDelayMs: 86400000 });
   const wantedClass: ExerciseTaskClass =
     derived.state === 'unknown' || derived.state === 'exposure'
       ? 'recognition_item'
       : 'controlled_recall';
 
-  const classItems = bank.filter(item => item.task_class === wantedClass);
-  let candidates = classItems.filter(item => lastItemId === null || item.id !== lastItemId);
+  const classItems = activeBank.filter((item) => item.task_class === wantedClass);
+  let candidates = classItems.filter((item) => lastItemId === null || item.id !== lastItemId);
   if (candidates.length === 0) {
-    candidates = classItems.length > 0 ? classItems : bank;
+    candidates = classItems.length > 0 ? classItems : activeBank;
   }
 
   const events = activeEvents(state);
