@@ -123,8 +123,10 @@ export function renderExerciseScreen(root: HTMLElement, deps: ExerciseDeps): voi
         await deps.persist(submitResult.state);
         errorContainer.textContent = '';
         errorContainer.style.display = 'none';
-        deps.statusController.update();
+        // Update the app state BEFORE refreshing the status block so the
+        // unsynced count is current the moment feedback appears (D.1 fix).
         deps.onStateUpdated(submitResult.state, submitResult.correct);
+        deps.statusController.update();
         showFeedback(submitResult);
       } catch (saveErr) {
         errorContainer.textContent = '';

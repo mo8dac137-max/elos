@@ -145,6 +145,27 @@ describe('ELOS Session Planner - Milestone F2', () => {
     assert.strictEqual(tasks[0].unit_id, 'unit-due');
   });
 
+  it('a due unit is not also listed in the continue tier', () => {
+    const curriculum = [
+      unit('unit-due', 'A1', [], 0),
+      unit('unit-continue', 'A1', [], 1),
+      unit('unit-new', 'A1', [], 2),
+    ];
+    const events = [
+      ...correctEvents('unit-due', 1, 0),
+      ...correctEvents('unit-continue', 1, 90 * 60 * 1000),
+    ];
+    const tasks = planSession(curriculum, events, isoAt(2 * 3600000), config);
+    const continueUnits = tasks
+      .filter(t => t.tier === 'continue')
+      .map(t => t.unit_id);
+    assert.ok(
+      continueUnits.every(id => id !== 'unit-due'),
+      'a due unit must not appear as a continue task'
+    );
+    assert.deepStrictEqual([...new Set(continueUnits)], ['unit-continue']);
+  });
+
   it('due units are sorted by due_at ascending', () => {
     const curriculum = [
       unit('unit-second-due', 'A1', [], 0),
