@@ -3,6 +3,7 @@ import {
   deriveFromClient,
   unsyncedCount,
 } from '../../kernel/index.js';
+import { unitTitle } from '../../app/curriculum.js';
 
 const HIGHER_STATES = new Set(['controlled', 'guided', 'spontaneous', 'mastery']);
 
@@ -11,9 +12,14 @@ export interface StatusBlockController {
   update: () => void;
 }
 
+/**
+ * The status block: unit title, derived state and the always-visible
+ * unsynced-event count. When getUnitId() returns null (Home screen) the
+ * unit-specific lines are hidden and only the sync status remains.
+ */
 export function createStatusBlock(
   getState: () => ClientState | null,
-  getUnitId: () => string
+  getUnitId: () => string | null
 ): StatusBlockController {
   const statusBlock = document.createElement('div');
   statusBlock.className = 'card status-card';
@@ -36,19 +42,27 @@ export function createStatusBlock(
     if (!state) return;
 
     const unitId = getUnitId();
-    unitLine.textContent = unitId === 'grammar:go-went-gone' ? 'Grammar: go / went / gone' : unitId;
+    if (unitId === null) {
+      unitLine.style.display = 'none';
+      stateLine.style.display = 'none';
+    } else {
+      unitLine.style.display = '';
+      stateLine.style.display = '';
+      unitLine.textContent = unitTitle(unitId);
 
-    const derived = deriveFromClient(state, unitId, { minDelayMs: 86400000 });
-    stateLine.textContent = `State: ${derived.state}`;
-    unsyncedLine.textContent = `Unsynced events: ${unsyncedCount(state)}`;
+      const derived = deriveFromClient(state, unitId, { minDelayMs: 86400000 });
+      stateLine.textContent = `State: ${derived.state}`;
 
-    if (HIGHER_STATES.has(derived.state)) {
-      if (!controlledNotice.parentElement) {
-        statusBlock.appendChild(controlledNotice);
+      if (HIGHER_STATES.has(derived.state)) {
+        if (!controlledNotice.parentElement) {
+          statusBlock.appendChild(controlledNotice);
+        }
+      } else if (controlledNotice.parentElement) {
+        statusBlock.removeChild(controlledNotice);
       }
-    } else if (controlledNotice.parentElement) {
-      statusBlock.removeChild(controlledNotice);
     }
+
+    unsyncedLine.textContent = `Unsynced events: ${unsyncedCount(state)}`;
   }
 
   update();

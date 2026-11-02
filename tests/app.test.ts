@@ -8,54 +8,111 @@ import {
   deriveFromClient,
   unsyncedCount,
   validateEvent,
+  activeEvents,
   ClientState,
 } from '../src/kernel/index.js';
 import {
   EXERCISE_BANK,
   Exercise,
+  ExerciseTaskClass,
   normalizeAnswer,
   checkAnswer,
   buildEvidenceEvent,
-  pickNextItem,
+  selectItem,
   submitAnswer,
   serializeState,
   parseState,
   InMemoryClientStore,
 } from '../src/app/index.js';
+import {
+  startSession,
+  nextExercise,
+  needsIntro,
+  summarizeSession,
+} from '../src/app/session.js';
+import { buildProgressMap } from '../src/app/progress.js';
+import {
+  CURRICULUM,
+  PLANNER_CONFIG,
+  unitTitle,
+} from '../src/app/curriculum.js';
+import { GRAMMAR_PACK } from '../src/content/grammar-pack.js';
 
-describe('ELOS App & Exercise Logic - Milestone D', () => {
-  it('checkAnswer normalization; every bank item has its answer inside its options for recognition items; ids unique; the bank has exactly the 8 items above', () => {
-    // Exact 8 items
-    assert.strictEqual(EXERCISE_BANK.length, 8);
+function byId(id: string): Exercise {
+  const item = EXERCISE_BANK.find((e) => e.id === id);
+  if (!item) throw new Error(`No exercise with id ${id}`);
+  return item;
+}
 
-    const expectedIds = ['r1', 'r2', 'r3', 'r4', 'c1', 'c2', 'c3', 'c4'];
-    const ids = EXERCISE_BANK.map(e => e.id);
-    assert.deepStrictEqual(ids, expectedIds);
-    assert.strictEqual(new Set(ids).size, 8);
+const GO_UNIT = 'grammar:go-went-gone';
+const PS_UNIT = 'grammar:present-simple-s';
 
-    // Recognition items have answer inside options
-    const recognitionItems = EXERCISE_BANK.filter(e => e.task_class === 'recognition_item');
-    assert.strictEqual(recognitionItems.length, 4);
-    for (const item of recognitionItems) {
-      assert.ok(item.options, `Exercise ${item.id} must have options`);
-      assert.ok(item.options!.includes(item.answer), `Exercise ${item.id} options must include answer`);
+describe('ELOS App & Exercise Logic - Milestone F3', () => {
+  it('EXERCISE_BANK mirrors GRAMMAR_PACK.items in pack order, including accepted and note_en', () => {
+    assert.strictEqual(EXERCISE_BANK.length, GRAMMAR_PACK.items.length);
+    assert.strictEqual(EXERCISE_BANK.length, 88);
+
+    for (let i = 0; i < GRAMMAR_PACK.items.length; i++) {
+      const item = GRAMMAR_PACK.items[i];
+      const ex = EXERCISE_BANK[i];
+      assert.strictEqual(ex.id, item.id);
+      assert.strictEqual(ex.unit_id, item.unit_id);
+      assert.strictEqual(ex.task_class, item.task_class);
+      assert.strictEqual(ex.context_id, item.context_id);
+      assert.strictEqual(ex.prompt, item.prompt);
+      assert.deepStrictEqual(ex.options, item.options);
+      assert.strictEqual(ex.answer, item.answer);
+      assert.deepStrictEqual(ex.accepted, item.accepted);
+      assert.strictEqual(ex.note_en, item.note_en);
     }
 
-    const recallItems = EXERCISE_BANK.filter(e => e.task_class === 'controlled_recall');
-    assert.strictEqual(recallItems.length, 4);
+    // Bank ids are unique; recognition answers are inside their options.
+    const ids = EXERCISE_BANK.map((e) => e.id);
+    assert.strictEqual(new Set(ids).size, ids.length);
+    for (const ex of EXERCISE_BANK) {
+      if (ex.task_class === 'recognition_item') {
+        assert.ok(ex.options, `Exercise ${ex.id} must have options`);
+        assert.ok(ex.options!.includes(ex.answer), `Exercise ${ex.id} answer must be in options`);
+      } else {
+        assert.strictEqual(ex.options, undefined, `Exercise ${ex.id} must have no options`);
+      }
+    }
 
-    // Normalization check
-    const r1 = EXERCISE_BANK[0];
-    assert.strictEqual(checkAnswer(r1, 'GONE'), true);
-    assert.strictEqual(checkAnswer(r1, ' gone. '), true);
-    assert.strictEqual(checkAnswer(r1, 'gone'), true);
-    assert.strictEqual(checkAnswer(r1, 'went'), false);
-    assert.strictEqual(checkAnswer(r1, 'go'), false);
+    // The original go/went/gone items are present and unchanged.
+    assert.deepStrictEqual(
+      EXERCISE_BANK.filter((e) => e.unit_id === GO_UNIT).map((e) => e.id),
+      ['r1', 'r2', 'r3', 'r4', 'c1', 'c2', 'c3', 'c4']
+    );
+  });
 
-    const c1 = EXERCISE_BANK[4];
-    assert.strictEqual(checkAnswer(c1, 'GONE'), true);
-    assert.strictEqual(checkAnswer(c1, ' Gone. '), true);
-    assert.strictEqual(checkAnswer(c1, 'went'), false);
+  it('normalizeAnswer: case, trim, curly apostrophe (U+2019), collapsed double spaces, one trailing period', () => {
+    assert.strictEqual(normalizeAnswer('  GONE. '), 'gone');
+    assert.strictEqual(normalizeAnswer('She   drinks   tea'), 'she drinks tea');
+    assert.strictEqual(normalizeAnswer('can\u2019t'), "can't");
+    assert.strictEqual(normalizeAnswer('  It\u2019S  Raining. '), "it's raining");
+    assert.strictEqual(normalizeAnswer('no article.'), 'no article');
+    assert.strictEqual(normalizeAnswer('should   NOT'), 'should not');
+  });
+
+  it('checkAnswer: accepted answers ("cant", "should not"), curly apostrophes, double spaces, trailing period', () => {
+    const md5 = byId('md-5'); // answer "can't", accepted ["cant", "cannot"]
+    assert.strictEqual(checkAnswer(md5, "can't"), true);
+    assert.strictEqual(checkAnswer(md5, 'cant'), true);
+    assert.strictEqual(checkAnswer(md5, 'cannot'), true);
+    assert.strictEqual(checkAnswer(md5, 'CAN\u2019T.'), true);
+    assert.strictEqual(checkAnswer(md5, '  Cant. '), true);
+    assert.strictEqual(checkAnswer(md5, 'can'), false);
+
+    const md8 = byId('md-8'); // answer "shouldn't", accepted ["shouldnt", "should not"]
+    assert.strictEqual(checkAnswer(md8, "shouldn't"), true);
+    assert.strictEqual(checkAnswer(md8, 'shouldnt'), true);
+    assert.strictEqual(checkAnswer(md8, 'should not'), true);
+    assert.strictEqual(checkAnswer(md8, 'Should  Not.'), true);
+    assert.strictEqual(checkAnswer(md8, 'should'), false);
+
+    const aan3 = byId('aan-3'); // answer "an", note_en present
+    assert.strictEqual(checkAnswer(aan3, 'AN'), true);
+    assert.strictEqual(aan3.note_en, 'Hour starts with a vowel sound (the h is silent), so we use an.');
   });
 
   it('buildEvidenceEvent output passes validateEvent for each class and sets modality/task_class/context_id/evaluator as specified; deterministic with a fake clock and fake id generator', () => {
@@ -65,7 +122,7 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
       newId: () => `test-ev-${++tick}`,
     };
 
-    const rItem = EXERCISE_BANK[0]; // r1, recognition_item
+    const rItem = byId('r1'); // recognition_item, go/went/gone
     const evRec = buildEvidenceEvent(rItem, 'gone', fakeCtx);
     const valRec = validateEvent(evRec);
     assert.strictEqual(valRec.ok, true);
@@ -73,7 +130,7 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
     assert.strictEqual(evRec.payload_type, 'item_response');
     assert.strictEqual(evRec.payload_version, 1);
     assert.deepStrictEqual(evRec.payload, { item_id: 'r1', response: 'gone' });
-    assert.deepStrictEqual(evRec.unit_refs, ['grammar:go-went-gone']);
+    assert.deepStrictEqual(evRec.unit_refs, [GO_UNIT]);
     assert.strictEqual(evRec.skill, 'grammar');
     assert.strictEqual(evRec.modality, 'receptive_written');
     assert.strictEqual(evRec.task_class, 'recognition_item');
@@ -84,7 +141,7 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
     assert.strictEqual(evRec.occurred_at, '2026-01-01T10:00:00.000Z');
     assert.strictEqual(evRec.recorded_at, '2026-01-01T10:00:00.000Z');
 
-    const cItem = EXERCISE_BANK[4]; // c1, controlled_recall
+    const cItem = byId('c1'); // controlled_recall, go/went/gone
     const evRecall = buildEvidenceEvent(cItem, 'wrong_answer', fakeCtx);
     const valRecall = validateEvent(evRecall);
     assert.strictEqual(valRecall.ok, true);
@@ -95,7 +152,7 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
     assert.strictEqual(evRecall.result, 'incorrect');
   });
 
-  it('submitAnswer: a correct recognition answer on an empty client yields "exposure" (first usable event); a second correct recognition answer yields "recognition"; then a correct controlled_recall yields "controlled"; incorrect answers never advance; the event is in the outbox (unsyncedCount grows)', () => {
+  it('submitAnswer: a correct recognition answer on an empty client yields "exposure"; a second yields "recognition"; then a correct controlled_recall yields "controlled"; incorrect answers never advance; unsyncedCount grows', () => {
     let timeMs = 1767264000000;
     let idSeq = 0;
     const ctx = {
@@ -104,110 +161,226 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
     };
 
     let client = createClient('dev-test');
-    const unitId = 'grammar:go-went-gone';
     const config = { minDelayMs: 60000 };
 
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'unknown');
+    assert.strictEqual(deriveFromClient(client, GO_UNIT, config).state, 'unknown');
     assert.strictEqual(unsyncedCount(client), 0);
 
-    // 1st correct recognition answer -> exposure
-    const r1 = EXERCISE_BANK[0];
-    const res1 = submitAnswer(client, r1, 'gone', ctx);
+    const res1 = submitAnswer(client, byId('r1'), 'gone', ctx);
     assert.strictEqual(res1.correct, true);
     client = res1.state;
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'exposure');
+    assert.strictEqual(deriveFromClient(client, GO_UNIT, config).state, 'exposure');
     assert.strictEqual(unsyncedCount(client), 1);
     assert.ok(client.outbox.includes(res1.event.event_id));
 
-    // 2nd correct recognition answer -> recognition
-    const r2 = EXERCISE_BANK[1];
-    const res2 = submitAnswer(client, r2, 'went', ctx);
+    const res2 = submitAnswer(client, byId('r2'), 'went', ctx);
     assert.strictEqual(res2.correct, true);
     client = res2.state;
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'recognition');
+    assert.strictEqual(deriveFromClient(client, GO_UNIT, config).state, 'recognition');
     assert.strictEqual(unsyncedCount(client), 2);
 
-    // 3rd correct controlled_recall answer -> controlled
-    const c1 = EXERCISE_BANK[4];
-    const res3 = submitAnswer(client, c1, 'gone', ctx);
+    const res3 = submitAnswer(client, byId('c1'), 'gone', ctx);
     assert.strictEqual(res3.correct, true);
     client = res3.state;
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'controlled');
+    assert.strictEqual(deriveFromClient(client, GO_UNIT, config).state, 'controlled');
     assert.strictEqual(unsyncedCount(client), 3);
 
-    // Incorrect answer never advances state
-    const c2 = EXERCISE_BANK[5];
-    const resIncorrect = submitAnswer(client, c2, 'wrong', ctx);
+    const resIncorrect = submitAnswer(client, byId('c2'), 'wrong', ctx);
     assert.strictEqual(resIncorrect.correct, false);
     client = resIncorrect.state;
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'controlled');
+    assert.strictEqual(deriveFromClient(client, GO_UNIT, config).state, 'controlled');
     assert.strictEqual(unsyncedCount(client), 4);
 
-    // On exposure state, an incorrect answer never advances state to recognition
     let exposureClient = createClient('dev-exp');
-    exposureClient = submitAnswer(exposureClient, r1, 'gone', ctx).state;
-    assert.strictEqual(deriveFromClient(exposureClient, unitId, config).state, 'exposure');
-    const resWrongOnExposure = submitAnswer(exposureClient, r2, 'wrong', ctx);
+    exposureClient = submitAnswer(exposureClient, byId('r1'), 'gone', ctx).state;
+    assert.strictEqual(deriveFromClient(exposureClient, GO_UNIT, config).state, 'exposure');
+    const resWrongOnExposure = submitAnswer(exposureClient, byId('r2'), 'wrong', ctx);
     assert.strictEqual(resWrongOnExposure.correct, false);
-    assert.strictEqual(deriveFromClient(resWrongOnExposure.state, unitId, config).state, 'exposure');
+    assert.strictEqual(deriveFromClient(resWrongOnExposure.state, GO_UNIT, config).state, 'exposure');
     assert.strictEqual(unsyncedCount(resWrongOnExposure.state), 2);
   });
 
-  it('pickNextItem: exposure/unknown -> recognition item; recognition -> controlled_recall; never returns lastItemId when another candidate exists; picks the least-answered; deterministic', () => {
-    let client = createClient('dev-planner');
-    const unitId = 'grammar:go-went-gone';
-    const config = { minDelayMs: 60000 };
+  it('selectItem: least answered first, ties by bank order, never returns lastItemId when another candidate exists, counts every active event', () => {
+    const client = createClient('dev-select');
 
     let idSeq = 0;
     const ctx = {
       now: () => '2026-01-01T10:00:00.000Z',
-      newId: () => `planner-ev-${++idSeq}`,
+      newId: () => `select-ev-${++idSeq}`,
     };
 
-    // Unknown -> recognition_item
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'unknown');
-    const pick1 = pickNextItem(client, EXERCISE_BANK, null);
-    assert.strictEqual(pick1.task_class, 'recognition_item');
-    assert.strictEqual(pick1.id, 'r1'); // ties broken by bank order
+    // Empty events: first recognition item of go/went/gone by bank order.
+    const pick1 = selectItem(EXERCISE_BANK, GO_UNIT, 'recognition_item', [], null);
+    assert.strictEqual(pick1.id, 'r1');
 
-    // Deterministic: multiple calls return same item
-    const pick1Repeat = pickNextItem(client, EXERCISE_BANK, null);
-    assert.strictEqual(pick1Repeat.id, pick1.id);
+    // Deterministic repeats.
+    assert.deepStrictEqual(
+      selectItem(EXERCISE_BANK, GO_UNIT, 'recognition_item', [], null),
+      pick1
+    );
 
-    // Advance to exposure
-    client = submitAnswer(client, pick1, 'gone', ctx).state;
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'exposure');
+    // lastItemId exclusion when other candidates exist.
+    const recognitionIds = ['r1', 'r2', 'r3', 'r4'];
+    for (const id of recognitionIds) {
+      const picked = selectItem(EXERCISE_BANK, GO_UNIT, 'recognition_item', [], id);
+      assert.notStrictEqual(picked.id, id);
+    }
 
-    // Exposure -> still recognition_item, but lastItemId exclusion applies
-    const pick2 = pickNextItem(client, EXERCISE_BANK, pick1.id);
-    assert.strictEqual(pick2.task_class, 'recognition_item');
-    assert.notStrictEqual(pick2.id, pick1.id);
-    assert.strictEqual(pick2.id, 'r2'); // least-answered tie-broken by bank order
+    // Answer c1 once: the next recall pick is c2 (least answered).
+    const answered = submitAnswer(client, byId('c1'), 'gone', ctx);
+    const events = activeEvents(answered.state);
+    const pickRecall = selectItem(EXERCISE_BANK, GO_UNIT, 'controlled_recall', events, null);
+    assert.strictEqual(pickRecall.id, 'c2');
 
-    // Advance to recognition
-    client = submitAnswer(client, pick2, 'went', ctx).state;
-    assert.strictEqual(deriveFromClient(client, unitId, config).state, 'recognition');
+    // lastItemId exclusion inside the recall class too.
+    for (const id of ['c1', 'c2', 'c3', 'c4']) {
+      const picked = selectItem(EXERCISE_BANK, GO_UNIT, 'controlled_recall', events, id);
+      assert.notStrictEqual(picked.id, id);
+    }
 
-    // Recognition -> controlled_recall
-    const pick3 = pickNextItem(client, EXERCISE_BANK, pick2.id);
-    assert.strictEqual(pick3.task_class, 'controlled_recall');
-    assert.strictEqual(pick3.id, 'c1');
+    // Throws for a unit/class combination that does not exist.
+    assert.throws(() =>
+      selectItem(EXERCISE_BANK, GO_UNIT, 'guided_production' as ExerciseTaskClass, [], null)
+    );
+  });
 
-    // Picks least-answered
-    client = submitAnswer(client, pick3, 'gone', ctx).state; // c1 answered once
-    const pick4 = pickNextItem(client, EXERCISE_BANK, null); // lastItemId is null
-    // c1 has count 1, c2, c3, c4 have count 0 -> picks c2
-    assert.strictEqual(pick4.id, 'c2');
+  it('startSession on an empty client returns tasks only for grammar:present-simple-s with task_class recognition_item and at most max_items_per_unit tasks', () => {
+    const client = createClient('dev-plan-empty');
+    const nowIso = '2026-01-01T10:00:00Z';
+
+    const tasks = startSession(client, nowIso, 10);
+    assert.ok(tasks.length > 0);
+    assert.ok(tasks.length <= PLANNER_CONFIG.max_items_per_unit);
+    assert.ok(tasks.every((t) => t.unit_id === PS_UNIT));
+    assert.ok(tasks.every((t) => t.task_class === 'recognition_item'));
+    assert.ok(tasks.every((t) => t.tier === 'new_unit'));
+    assert.ok(tasks.every((t) => t.reason === 'prerequisites satisfied'));
+  });
+
+  it('after correct answers move grammar:present-simple-s to "exposure" and "recognition", the next session contains it as "continue" with controlled_recall', () => {
+    let timeMs = 1767264000000;
+    let idSeq = 0;
+    const ctx = {
+      now: () => new Date(timeMs++).toISOString(),
+      newId: () => `cont-ev-${++idSeq}`,
+    };
+
+    let client = createClient('dev-plan-continue');
+
+    client = submitAnswer(client, byId('ps-1'), 'goes', ctx).state;
+    assert.strictEqual(
+      deriveFromClient(client, PS_UNIT, PLANNER_CONFIG.derive).state,
+      'exposure'
+    );
+    client = submitAnswer(client, byId('ps-2'), 'studies', ctx).state;
+    assert.strictEqual(
+      deriveFromClient(client, PS_UNIT, PLANNER_CONFIG.derive).state,
+      'recognition'
+    );
+
+    // One minute after the events: the unit's review is not due yet
+    // (first step is 1 day), so it can only appear as "continue".
+    const nowIso = new Date(timeMs + 60000).toISOString();
+    const tasks = startSession(client, nowIso, 10);
+
+    const psTasks = tasks.filter((t) => t.unit_id === PS_UNIT);
+    assert.ok(psTasks.length > 0, 'expected present-simple-s tasks');
+    assert.ok(psTasks.every((t) => t.tier === 'continue'));
+    assert.ok(psTasks.every((t) => t.task_class === 'controlled_recall'));
+    assert.ok(psTasks.every((t) => t.reason === 'state=recognition'));
+
+    // nextExercise now returns a controlled_recall exercise of that unit.
+    const exercise = nextExercise(client, psTasks[0], null);
+    assert.strictEqual(exercise.unit_id, PS_UNIT);
+    assert.strictEqual(exercise.task_class, 'controlled_recall');
+  });
+
+  it('buildProgressMap groups by CEFR band, has no numeric score fields, and reflects derived state and due info', () => {
+    const client = createClient('dev-progress');
+    const nowIso = '2026-01-01T10:00:00Z';
+
+    const emptyMap = buildProgressMap(client, nowIso);
+    assert.ok(emptyMap.length > 0);
+    for (const band of emptyMap) {
+      assert.ok(band.units.length > 0, `band ${band.band} must have units`);
+      for (const unit of band.units) {
+        assert.strictEqual(unit.state, 'unknown');
+        assert.deepStrictEqual(unit.due, { kind: 'not_started' });
+      }
+    }
+    // Only bands that have units appear.
+    const bandNames = emptyMap.map((b) => b.band);
+    assert.ok(bandNames.includes('A1'));
+    assert.ok(bandNames.includes('A2'));
+
+    // No percentages or scores anywhere.
+    const serialized = JSON.stringify(emptyMap);
+    assert.ok(!serialized.includes('percent'));
+    assert.ok(!serialized.includes('score'));
+    assert.ok(!/"\d+(\.\d+)?"/.test(serialized.replace(/"in_ms":\d+/g, 'IN_MS')));
+
+    // After one correct answer the unit is "exposure" with a future review.
+    let timeMs = 1767264000000;
+    let idSeq = 0;
+    const ctx = {
+      now: () => new Date(timeMs++).toISOString(),
+      newId: () => `prog-ev-${++idSeq}`,
+    };
+    let answeredClient = createClient('dev-progress-2');
+    answeredClient = submitAnswer(answeredClient, byId('ps-1'), 'goes', ctx).state;
+
+    const afterMap = buildProgressMap(answeredClient, new Date(timeMs).toISOString());
+    const psBand = afterMap.find((b) =>
+      b.units.some((u) => u.unit_id === PS_UNIT)
+    )!;
+    const psUnit = psBand.units.find((u) => u.unit_id === PS_UNIT)!;
+    assert.strictEqual(psUnit.state, 'exposure');
+    assert.strictEqual(psUnit.due.kind, 'later');
+    assert.ok(psUnit.due.kind === 'later' && psUnit.due.in_ms > 0);
+    assert.ok(psUnit.due.kind === 'later' && psUnit.due.in_ms <= 86400000);
+  });
+
+  it('needsIntro: true only for an unknown unit not shown yet in this session', () => {
+    let timeMs = 1767264000000;
+    let idSeq = 0;
+    const ctx = {
+      now: () => new Date(timeMs++).toISOString(),
+      newId: () => `intro-ev-${++idSeq}`,
+    };
+
+    const client = createClient('dev-intro');
+    assert.strictEqual(needsIntro(client, PS_UNIT, []), true);
+    assert.strictEqual(needsIntro(client, PS_UNIT, [PS_UNIT]), false);
+
+    const answered = submitAnswer(client, byId('ps-1'), 'goes', ctx).state;
+    assert.strictEqual(needsIntro(answered, PS_UNIT, []), false);
+  });
+
+  it('summarizeSession: one row per unit in afterSummaries with from/to states and the next review', () => {
+    const before = [
+      { unit_id: 'unit-a', state: 'unknown' as const, due_at: null },
+      { unit_id: 'unit-b', state: 'exposure' as const, due_at: '2026-01-02T10:00:00Z' },
+    ];
+    const after = [
+      { unit_id: 'unit-b', state: 'recognition' as const, due_at: '2026-01-04T10:00:00Z' },
+      { unit_id: 'unit-c', state: 'exposure' as const, due_at: null },
+    ];
+
+    assert.deepStrictEqual(summarizeSession(before, after), [
+      { unit_id: 'unit-b', from: 'exposure', to: 'recognition', due_at: '2026-01-04T10:00:00Z' },
+      { unit_id: 'unit-c', from: 'unknown', to: 'exposure', due_at: null },
+    ]);
+
+    assert.deepStrictEqual(summarizeSession(before, []), []);
   });
 
   it('storage: serialize/parse round trip equals the original state; parse of garbage, of "{}", of a state with a wrong field type returns corrupt without throwing; InMemoryClientStore contract (empty -> save -> ok)', async () => {
     let client = createClient('dev-storage');
-    client = submitAnswer(client, EXERCISE_BANK[0], 'gone', {
-      now: () => '2026-01-01T10:00:00.000Z',
+    client = submitAnswer(client, byId('r1'), 'gone', {
+      now: () => '2026-01-01T10:00:00Z',
       newId: () => 'ev-storage-1',
     }).state;
 
-    // Round trip
     const serialized = serializeState(client);
     const parsed = parseState(serialized);
     assert.strictEqual(parsed.status, 'ok');
@@ -215,29 +388,23 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
       assert.deepStrictEqual(parsed.state, client);
     }
 
-    // Garbage JSON
     const badJson = parseState('not-json{{{');
     assert.strictEqual(badJson.status, 'corrupt');
     if (badJson.status === 'corrupt') {
       assert.strictEqual(badJson.raw, 'not-json{{{');
     }
 
-    // Empty object "{}"
-    const emptyObj = parseState('{}');
-    assert.strictEqual(emptyObj.status, 'corrupt');
+    assert.strictEqual(parseState('{}').status, 'corrupt');
 
-    // Wrong field type (e.g. cursor is string)
     const badStateJson = JSON.stringify({ ...client, cursor: 'invalid-cursor' });
-    const badField = parseState(badStateJson);
-    assert.strictEqual(badField.status, 'corrupt');
+    assert.strictEqual(parseState(badStateJson).status, 'corrupt');
 
-    // InMemoryClientStore contract
-    const store = new InMemoryClientStore();
-    const load1 = await store.load();
+    const memStore = new InMemoryClientStore();
+    const load1 = await memStore.load();
     assert.deepStrictEqual(load1, { status: 'empty' });
 
-    await store.save(client);
-    const load2 = await store.load();
+    await memStore.save(client);
+    const load2 = await memStore.load();
     assert.strictEqual(load2.status, 'ok');
     if (load2.status === 'ok') {
       assert.deepStrictEqual(load2.state, client);
@@ -248,21 +415,14 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
     const baseClient = createClient('dev-corrupt-check');
     const validState = JSON.parse(serializeState(baseClient));
 
-    // 1. "null"
     assert.strictEqual(parseState('null').status, 'corrupt');
-
-    // 2. "[]"
     assert.strictEqual(parseState('[]').status, 'corrupt');
-
-    // 3. "5"
     assert.strictEqual(parseState('5').status, 'corrupt');
 
-    // 4. a state missing outbox
     const missingOutbox = { ...validState };
     delete missingOutbox.outbox;
     assert.strictEqual(parseState(JSON.stringify(missingOutbox)).status, 'corrupt');
 
-    // 5. a state with non-integer device_seq in an event
     const nonIntDeviceSeq = {
       ...validState,
       events: [
@@ -275,65 +435,30 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
     };
     assert.strictEqual(parseState(JSON.stringify(nonIntDeviceSeq)).status, 'corrupt');
 
-    // 6. events not an array
     const eventsNotArray = { ...validState, events: 'not-an-array' };
     assert.strictEqual(parseState(JSON.stringify(eventsNotArray)).status, 'corrupt');
 
-    // 7. conflicts with a wrong item type
     const badConflicts = { ...validState, conflicts: ['not-an-object'] };
     assert.strictEqual(parseState(JSON.stringify(badConflicts)).status, 'corrupt');
 
-    // 8. next_device_seq 0
     const seqZero = { ...validState, next_device_seq: 0 };
     assert.strictEqual(parseState(JSON.stringify(seqZero)).status, 'corrupt');
 
-    // 9. a negative cursor
     const negCursor = { ...validState, cursor: -1 };
     assert.strictEqual(parseState(JSON.stringify(negCursor)).status, 'corrupt');
   });
 
-  it('pickNextItem never returns lastItemId when another candidate of the wanted class exists', () => {
-    const client = createClient('dev-pick-check');
-
-    // In 'unknown' state, wanted class is 'recognition_item' (4 items: r1, r2, r3, r4)
-    const recognitionItems = EXERCISE_BANK.filter(e => e.task_class === 'recognition_item');
-    for (const item of recognitionItems) {
-      const picked = pickNextItem(client, EXERCISE_BANK, item.id);
-      assert.notStrictEqual(picked.id, item.id);
-      assert.strictEqual(picked.task_class, 'recognition_item');
-    }
-
-    // Now advance client to 'recognition' state where wanted class is 'controlled_recall' (c1, c2, c3, c4)
-    let time = 1700000000000;
-    let idGen = 0;
-    const ctx = {
-      now: () => new Date(time++).toISOString(),
-      newId: () => `ev-${++idGen}`,
-    };
-    const cRec1 = submitAnswer(client, EXERCISE_BANK[0], 'gone', ctx).state;
-    const cRec2 = submitAnswer(cRec1, EXERCISE_BANK[1], 'went', ctx).state;
-    assert.strictEqual(deriveFromClient(cRec2, 'grammar:go-went-gone', { minDelayMs: 60000 }).state, 'recognition');
-
-    const recallItems = EXERCISE_BANK.filter(e => e.task_class === 'controlled_recall');
-    for (const item of recallItems) {
-      const picked = pickNextItem(cRec2, EXERCISE_BANK, item.id);
-      assert.notStrictEqual(picked.id, item.id);
-      assert.strictEqual(picked.task_class, 'controlled_recall');
-    }
-  });
-
   it('submitAnswer throws when recordLocalEvent does not return "recorded" (for example a repeated event id with identical content)', () => {
     const client = createClient('dev-submit-check');
-    const r1 = EXERCISE_BANK[0];
+    const r1 = byId('r1');
     const fixedCtx = {
-      now: () => '2026-01-01T10:00:00.000Z',
+      now: () => '2026-01-01T10:00:00Z',
       newId: () => 'fixed-id-duplicate',
     };
 
     const firstSubmit = submitAnswer(client, r1, 'gone', fixedCtx);
     assert.strictEqual(firstSubmit.correct, true);
 
-    // Submitting again with identical event_id and identical content produces outcome "duplicate"
     assert.throws(
       () => {
         submitAnswer(firstSubmit.state, r1, 'gone', fixedCtx);
@@ -342,6 +467,18 @@ describe('ELOS App & Exercise Logic - Milestone D', () => {
         return err instanceof Error && err.message.includes('Failed to record event');
       }
     );
+  });
+
+  it('curriculum: CURRICULUM mirrors the pack units with order = array index; unitTitle falls back to the id', () => {
+    assert.strictEqual(CURRICULUM.length, GRAMMAR_PACK.units.length);
+    for (let i = 0; i < CURRICULUM.length; i++) {
+      assert.strictEqual(CURRICULUM[i].id, GRAMMAR_PACK.units[i].id);
+      assert.strictEqual(CURRICULUM[i].cefr, GRAMMAR_PACK.units[i].cefr);
+      assert.deepStrictEqual(CURRICULUM[i].prerequisites, GRAMMAR_PACK.units[i].prerequisites);
+      assert.strictEqual(CURRICULUM[i].order, i);
+    }
+    assert.strictEqual(unitTitle(PS_UNIT), 'Present simple: he/she/it + -s');
+    assert.strictEqual(unitTitle('grammar:not-a-unit'), 'grammar:not-a-unit');
   });
 
   it('purity: files in src/app must not use Date.now(, new Date(), Math.random, crypto, document, window, fetch(, localStorage, indexedDB (scan test), and must import nothing from src/ui', () => {

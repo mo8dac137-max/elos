@@ -1,8 +1,5 @@
 node_modules/
-build/
 dist/
-coverage/
-.DS_Store
+.env
+bun.lock
 *.log
-.env*
-!.env.example

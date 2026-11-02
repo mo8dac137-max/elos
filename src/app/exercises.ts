@@ -1,11 +1,11 @@
 import {
   EvidenceEvent,
-  validateEvent,
-  deriveFromClient,
-  activeEvents,
-  recordLocalEvent,
   ClientState,
+  validateEvent,
+  recordLocalEvent,
 } from '../kernel/index.js';
+import { GRAMMAR_PACK } from '../content/grammar-pack.js';
+import type { ItemDef } from '../content/types.js';
 
 export type ExerciseTaskClass = 'recognition_item' | 'controlled_recall';
 
@@ -17,82 +17,31 @@ export interface Exercise {
   prompt: string;
   options?: string[];
   answer: string;
+  accepted?: string[];
+  note_en?: string;
 }
 
-// Exactly the 8 items for grammar:go-went-gone
-export const EXERCISE_BANK: Exercise[] = [
-  {
-    id: 'r1',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'recognition_item',
-    context_id: 'home',
-    prompt: 'She has already ___ home.',
-    options: ['went', 'gone', 'go'],
-    answer: 'gone',
-  },
-  {
-    id: 'r2',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'recognition_item',
-    context_id: 'market',
-    prompt: 'Yesterday we ___ to the market.',
-    options: ['gone', 'went', 'go'],
-    answer: 'went',
-  },
-  {
-    id: 'r3',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'recognition_item',
-    context_id: 'school',
-    prompt: 'They have ___ to school.',
-    options: ['went', 'gone', 'go'],
-    answer: 'gone',
-  },
-  {
-    id: 'r4',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'recognition_item',
-    context_id: 'gym',
-    prompt: 'Last week I ___ to the gym every morning.',
-    options: ['go', 'went', 'gone'],
-    answer: 'went',
-  },
-  {
-    id: 'c1',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'controlled_recall',
-    context_id: 'out',
-    prompt: 'He has ___ out. (go)',
-    answer: 'gone',
-  },
-  {
-    id: 'c2',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'controlled_recall',
-    context_id: 'night',
-    prompt: 'Last night I ___ to bed early. (go)',
-    answer: 'went',
-  },
-  {
-    id: 'c3',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'controlled_recall',
-    context_id: 'work',
-    prompt: 'My brother has ___ to work. (go)',
-    answer: 'gone',
-  },
-  {
-    id: 'c4',
-    unit_id: 'grammar:go-went-gone',
-    task_class: 'controlled_recall',
-    context_id: 'bus',
-    prompt: 'I ___ to school by bus yesterday. (go)',
-    answer: 'went',
-  },
-];
+function toExercise(item: ItemDef): Exercise {
+  return {
+    id: item.id,
+    unit_id: item.unit_id,
+    task_class: item.task_class,
+    context_id: item.context_id,
+    prompt: item.prompt,
+    options: item.options,
+    answer: item.answer,
+    accepted: item.accepted,
+    note_en: item.note_en,
+  };
+}
+
+// Every grammar-pack item, in pack order.
+export const EXERCISE_BANK: Exercise[] = GRAMMAR_PACK.items.map(toExercise);
 
 export function normalizeAnswer(str: string): string {
   let s = str.trim().toLowerCase();
+  s = s.replace(/\u2019/g, "'");
+  s = s.replace(/\s+/g, ' ');
   if (s.endsWith('.')) {
     s = s.slice(0, -1);
   }
@@ -100,7 +49,12 @@ export function normalizeAnswer(str: string): string {
 }
 
 export function checkAnswer(exercise: Exercise, response: string): boolean {
-  return normalizeAnswer(response) === normalizeAnswer(exercise.answer);
+  const normalized = normalizeAnswer(response);
+  if (normalized === normalizeAnswer(exercise.answer)) {
+    return true;
+  }
+  const accepted = exercise.accepted ?? [];
+  return accepted.some((a) => normalized === normalizeAnswer(a));
 }
 
 export interface GeneratorContext {
@@ -152,28 +106,33 @@ export function buildEvidenceEvent(
   return event;
 }
 
-export function pickNextItem(
-  state: ClientState,
-  bank: Exercise[],
+/**
+ * Pick the next exercise for a unit and task class: among the items of that
+ * unit and class, excluding lastItemId (unless it is the only one), return
+ * the one answered the fewest times (counting active events whose
+ * payload.item_id equals the item id); ties are broken by bank order.
+ */
+export function selectItem(
+  bank: readonly Exercise[],
+  unitId: string,
+  taskClass: ExerciseTaskClass,
+  events: readonly EvidenceEvent[],
   lastItemId: string | null
 ): Exercise {
-  const targetUnitId = bank[0]?.unit_id ?? 'grammar:go-went-gone';
-  const unitBank = bank.filter((b) => b.unit_id === targetUnitId);
-  const activeBank = unitBank.length > 0 ? unitBank : bank;
-
-  const derived = deriveFromClient(state, targetUnitId, { minDelayMs: 86400000 });
-  const wantedClass: ExerciseTaskClass =
-    derived.state === 'unknown' || derived.state === 'exposure'
-      ? 'recognition_item'
-      : 'controlled_recall';
-
-  const classItems = activeBank.filter((item) => item.task_class === wantedClass);
-  let candidates = classItems.filter((item) => lastItemId === null || item.id !== lastItemId);
-  if (candidates.length === 0) {
-    candidates = classItems.length > 0 ? classItems : activeBank;
+  const ofUnitAndClass = bank.filter(
+    (b) => b.unit_id === unitId && b.task_class === taskClass
+  );
+  if (ofUnitAndClass.length === 0) {
+    throw new Error(`No items found for unit "${unitId}" and class "${taskClass}"`);
   }
 
-  const events = activeEvents(state);
+  let candidates = ofUnitAndClass.filter(
+    (item) => lastItemId === null || item.id !== lastItemId
+  );
+  if (candidates.length === 0) {
+    candidates = ofUnitAndClass;
+  }
+
   const counts = new Map<string, number>();
   for (const ev of events) {
     if (ev.payload && typeof ev.payload === 'object') {

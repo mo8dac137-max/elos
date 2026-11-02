@@ -1,18 +1,38 @@
 import {
   createClient,
   ClientState,
+  activeEvents,
+  deriveFromClient,
+  deriveReviewInfo,
 } from '../kernel/index.js';
 import {
-  EXERCISE_BANK,
   Exercise,
-  pickNextItem,
-  submitAnswer,
+  GeneratorContext,
   serializeState,
 } from '../app/index.js';
+import {
+  CURRICULUM,
+  PLANNER_CONFIG,
+  findUnitDef,
+  unitTitle,
+} from '../app/curriculum.js';
+import {
+  startSession,
+  nextExercise,
+  needsIntro,
+  summarizeSession,
+  UnitSummary,
+} from '../app/session.js';
 import { IndexedDbClientStore } from './indexedDbStore.js';
 import { copyTextToClipboard } from './screens/clipboard.js';
 import { renderCorruptScreen } from './screens/corrupt.js';
 import { createStatusBlock } from './screens/statusBlock.js';
+import { renderHome } from './screens/home.js';
+import { renderIntro } from './screens/intro.js';
+import { renderExerciseScreen } from './screens/exercise.js';
+import { renderSummary } from './screens/summary.js';
+import { renderProgressMap } from './screens/progress.js';
+import { renderUnitCard } from './screens/unitCard.js';
 import {
   initPWA,
   subscribeInstallPrompt,
@@ -22,203 +42,62 @@ import {
 const store = new IndexedDbClientStore();
 
 let currentState: ClientState | null = null;
-const currentUnitId: string = 'grammar:go-went-gone';
-let currentExercise: Exercise | null = null;
-let lastAnsweredId: string | null = null;
+let progressUnitId: string | null = null;
+
+interface SessionRun {
+  tasks: ReturnType<typeof startSession>;
+  index: number;
+  introShown: string[];
+  before: UnitSummary[];
+  answered: number;
+  correct: number;
+  touched: Set<string>;
+  lastItemId: string | null;
+}
+
+let session: SessionRun | null = null;
 
 function generateId(): string {
   return 'ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
 }
 
-function getContext() {
+function getContext(): GeneratorContext {
   return {
     now: () => new Date().toISOString(),
     newId: generateId,
   };
 }
 
-function renderApp(root: HTMLElement): void {
-  if (!currentState) return;
+function nowIso(): string {
+  return new Date().toISOString();
+}
 
-  root.textContent = '';
+function allUnitSummaries(state: ClientState): UnitSummary[] {
+  const events = activeEvents(state);
+  return CURRICULUM.map((u) => ({
+    unit_id: u.id,
+    state: deriveFromClient(state, u.id, PLANNER_CONFIG.derive).state,
+    due_at: deriveReviewInfo(u.id, events, PLANNER_CONFIG.review).due_at,
+  }));
+}
 
-  const container = document.createElement('div');
-  container.className = 'container';
-
-  // Header
-  const header = document.createElement('header');
-  const heading = document.createElement('h1');
-  heading.textContent = 'ELOS';
-
-  const unitLabel = document.createElement('div');
-  unitLabel.className = 'unit-label';
-  unitLabel.textContent = 'Grammar: go / went / gone';
-
-  header.appendChild(heading);
-  header.appendChild(unitLabel);
-  container.appendChild(header);
-
-  // Status Block
-  const statusController = createStatusBlock(
-    () => currentState,
-    () => currentUnitId
-  );
-  container.appendChild(statusController.element);
-
-  const errorContainer = document.createElement('div');
-  errorContainer.id = 'error-area';
-  errorContainer.className = 'error-area';
-  container.appendChild(errorContainer);
-
-  if (!currentExercise) {
-    currentExercise = pickNextItem(currentState, EXERCISE_BANK, lastAnsweredId);
-  }
-  const exercise = currentExercise;
-
-  const card = document.createElement('div');
-  card.className = 'card exercise-card';
-
-  const promptEl = document.createElement('div');
-  promptEl.className = 'prompt-text';
-  promptEl.textContent = exercise.prompt;
-  card.appendChild(promptEl);
-
-  const interactionArea = document.createElement('div');
-  interactionArea.className = 'interaction-area';
-
-  let hasSubmitted = false;
-
-  function showFeedback(submitResult: { correct: boolean }): void {
-    interactionArea.textContent = '';
-
-    const feedback = document.createElement('div');
-    feedback.className = submitResult.correct ? 'feedback-correct' : 'feedback-incorrect';
-    feedback.textContent = submitResult.correct ? 'Correct' : 'Not quite';
-    interactionArea.appendChild(feedback);
-
-    const answerInfo = document.createElement('div');
-    answerInfo.className = 'answer-info';
-    answerInfo.textContent = `Answer: ${exercise.answer}`;
-    interactionArea.appendChild(answerInfo);
-
-    const nextBtn = document.createElement('button');
-    nextBtn.className = 'btn btn-primary';
-    nextBtn.textContent = 'Next';
-    nextBtn.onclick = () => {
-      currentExercise = pickNextItem(currentState!, EXERCISE_BANK, lastAnsweredId);
-      renderApp(root);
-    };
-    interactionArea.appendChild(nextBtn);
-    nextBtn.focus();
-  }
-
-  async function handleResponse(responseStr: string): Promise<void> {
-    if (hasSubmitted || !currentState) return;
-    hasSubmitted = true;
-
-    let submitResult: { state: ClientState; correct: boolean };
-    try {
-      submitResult = submitAnswer(currentState, exercise, responseStr, getContext());
-    } catch (err) {
-      errorContainer.textContent = `Error recording event: ${err instanceof Error ? err.message : String(err)}`;
-      errorContainer.style.display = 'block';
-      return;
-    }
-
-    currentState = submitResult.state;
-    lastAnsweredId = exercise.id;
-
-    async function attemptSave(): Promise<void> {
-      try {
-        await store.save(currentState!);
-        errorContainer.textContent = '';
-        errorContainer.style.display = 'none';
-        statusController.update();
-        showFeedback(submitResult);
-      } catch (saveErr) {
-        errorContainer.textContent = '';
-        errorContainer.style.display = 'block';
-
-        const errMsg = document.createElement('div');
-        errMsg.className = 'error-text';
-        errMsg.textContent = `Save failed: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`;
-        errorContainer.appendChild(errMsg);
-
-        const retryBtn = document.createElement('button');
-        retryBtn.className = 'btn';
-        retryBtn.style.marginTop = '8px';
-        retryBtn.textContent = 'Retry save';
-        retryBtn.onclick = () => {
-          attemptSave();
-        };
-        errorContainer.appendChild(retryBtn);
-      }
-    }
-
-    await attemptSave();
-  }
-
-  if (exercise.task_class === 'recognition_item' && exercise.options) {
-    const optionsContainer = document.createElement('div');
-    optionsContainer.className = 'options-grid';
-    for (const opt of exercise.options) {
-      const btn = document.createElement('button');
-      btn.className = 'btn option-btn';
-      btn.textContent = opt;
-      btn.onclick = () => handleResponse(opt);
-      optionsContainer.appendChild(btn);
-    }
-    interactionArea.appendChild(optionsContainer);
-  } else {
-    const form = document.createElement('div');
-    form.className = 'recall-form';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'text-input';
-    input.placeholder = 'Type your answer';
-    input.autocomplete = 'off';
-    input.autocapitalize = 'none';
-
-    const checkBtn = document.createElement('button');
-    checkBtn.className = 'btn';
-    checkBtn.textContent = 'Check';
-    checkBtn.onclick = () => {
-      if (input.value.trim().length > 0) {
-        handleResponse(input.value);
-      }
-    };
-
-    input.onkeydown = (e) => {
-      if (e.key === 'Enter' && input.value.trim().length > 0) {
-        handleResponse(input.value);
-      }
-    };
-
-    form.appendChild(input);
-    form.appendChild(checkBtn);
-    interactionArea.appendChild(form);
-  }
-
-  card.appendChild(interactionArea);
-  container.appendChild(card);
-
-  // Backup button
+function makeBackupButton(): HTMLButtonElement {
   const backupBtn = document.createElement('button');
   backupBtn.className = 'btn backup-btn';
   backupBtn.textContent = 'Copy backup (JSON)';
   backupBtn.onclick = () => {
     if (currentState) {
       const jsonStr = serializeState(currentState);
-      copyTextToClipboard(jsonStr, container, backupBtn, 'Copied to clipboard');
+      const host = backupBtn.parentElement || document.body;
+      copyTextToClipboard(jsonStr, host as HTMLElement, backupBtn, 'Copied to clipboard');
     }
   };
-  container.appendChild(backupBtn);
+  return backupBtn;
+}
 
-  // In-App PWA Install button
+function makeInstallElement(): HTMLElement {
   const installContainer = document.createElement('div');
   installContainer.style.marginTop = '8px';
-
   subscribeInstallPrompt((canInstall) => {
     installContainer.textContent = '';
     if (canInstall) {
@@ -231,9 +110,155 @@ function renderApp(root: HTMLElement): void {
       installContainer.appendChild(installBtn);
     }
   });
+  return installContainer;
+}
 
-  container.appendChild(installContainer);
-  root.appendChild(container);
+function showHome(): void {
+  const root = document.getElementById('root') || document.body;
+  if (!currentState) return;
+
+  const statusController = createStatusBlock(
+    () => currentState,
+    () => null
+  );
+
+  renderHome(root, {
+    state: currentState,
+    nowIso: nowIso(),
+    statusElement: statusController.element,
+    backupButton: makeBackupButton(),
+    installElement: makeInstallElement(),
+    onStartSession: (size) => startSessionFlow(size),
+    onOpenProgress: () => {
+      progressUnitId = null;
+      showProgress();
+    },
+  });
+}
+
+function startSessionFlow(size: number): void {
+  if (!currentState) return;
+  const tasks = startSession(currentState, nowIso(), size);
+  if (tasks.length === 0) {
+    showHome();
+    return;
+  }
+  session = {
+    tasks,
+    index: 0,
+    introShown: [],
+    before: allUnitSummaries(currentState),
+    answered: 0,
+    correct: 0,
+    touched: new Set<string>(),
+    lastItemId: null,
+  };
+  renderSessionStep();
+}
+
+function renderSessionStep(): void {
+  const root = document.getElementById('root') || document.body;
+  if (!currentState || !session) return;
+
+  const task = session.tasks[session.index];
+  const unitDef = findUnitDef(task.unit_id);
+
+  if (unitDef && needsIntro(currentState, task.unit_id, session.introShown)) {
+    session.introShown.push(task.unit_id);
+    renderIntro(root, {
+      unitDef,
+      onStart: () => renderSessionStep(),
+    });
+    return;
+  }
+
+  const exercise: Exercise = nextExercise(currentState, task, session.lastItemId);
+
+  const statusController = createStatusBlock(
+    () => currentState,
+    () => task.unit_id
+  );
+
+  renderExerciseScreen(root, {
+    exercise,
+    index: session.index + 1,
+    total: session.tasks.length,
+    unitTitle: unitTitle(task.unit_id),
+    ruleSummaryEn: unitDef ? unitDef.summary_en : '',
+    statusController,
+    getState: () => currentState,
+    newContext: getContext,
+    persist: (state) => store.save(state),
+    onStateUpdated: (state, correct) => {
+      if (!currentState || !session) return;
+      currentState = state;
+      session.lastItemId = exercise.id;
+      session.answered += 1;
+      if (correct) session.correct += 1;
+      session.touched.add(task.unit_id);
+    },
+    onNext: () => {
+      if (!session) return;
+      session.index += 1;
+      if (session.index >= session.tasks.length) {
+        showSummary();
+      } else {
+        renderSessionStep();
+      }
+    },
+  });
+}
+
+function showSummary(): void {
+  const root = document.getElementById('root') || document.body;
+  if (!currentState || !session) return;
+
+  const after = allUnitSummaries(currentState).filter((s) =>
+    session!.touched.has(s.unit_id)
+  );
+  const rows = summarizeSession(session.before, after);
+
+  renderSummary(root, {
+    answered: session.answered,
+    correct: session.correct,
+    rows,
+    nowIso: nowIso(),
+    onHome: () => {
+      session = null;
+      showHome();
+    },
+  });
+}
+
+function showProgress(): void {
+  const root = document.getElementById('root') || document.body;
+  if (!currentState) return;
+
+  if (progressUnitId) {
+    const unitDef = findUnitDef(progressUnitId);
+    if (unitDef) {
+      const state = deriveFromClient(currentState, unitDef.id, PLANNER_CONFIG.derive).state;
+      renderUnitCard(root, {
+        unitDef,
+        stateLabel: state,
+        onBack: () => {
+          progressUnitId = null;
+          showProgress();
+        },
+      });
+      return;
+    }
+  }
+
+  renderProgressMap(root, {
+    state: currentState,
+    nowIso: nowIso(),
+    onBack: () => showHome(),
+    onOpenUnit: (unitId) => {
+      progressUnitId = unitId;
+      showProgress();
+    },
+  });
 }
 
 export async function initApp(): Promise<void> {
@@ -256,7 +281,7 @@ export async function initApp(): Promise<void> {
       currentState = result.state;
     }
 
-    renderApp(root);
+    showHome();
   } catch (err) {
     root.textContent = '';
     const container = document.createElement('div');
