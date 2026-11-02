@@ -38,11 +38,22 @@ import {
   subscribeInstallPrompt,
   promptInstall,
 } from './pwa.js';
+import { signIn, SignInError, AuthSession } from '../sync/auth.js';
+import { runSync, SyncOutcome } from '../sync/sync.js';
+import {
+  loadAuthSession,
+  saveAuthSession,
+  getLastSyncedAt,
+  setLastSyncedAt,
+} from './authStore.js';
+import { createSyncBar } from './screens/syncBar.js';
 
 const store = new IndexedDbClientStore();
 
 let currentState: ClientState | null = null;
+let currentAuth: AuthSession | null = null;
 let progressUnitId: string | null = null;
+let isSyncing = false;
 
 interface SessionRun {
   tasks: ReturnType<typeof startSession>;
@@ -113,6 +124,36 @@ function makeInstallElement(): HTMLElement {
   return installContainer;
 }
 
+async function performSync(): Promise<SyncOutcome> {
+  if (isSyncing) {
+    return {
+      status: 'offline',
+      pushed: 0,
+      pulled: 0,
+      last_synced_at: null,
+      message: 'Sync already in progress',
+    };
+  }
+  if (!currentAuth || !currentState) {
+    return { status: 'not_signed_in', pushed: 0, pulled: 0, last_synced_at: null };
+  }
+  isSyncing = true;
+  try {
+    const r = await runSync(fetch, currentState, currentAuth);
+    currentState = r.state;
+    currentAuth = r.session;
+    await store.save(currentState);
+    if (r.session) await saveAuthSession(r.session);
+    if (r.outcome.status === 'ok' && r.outcome.last_synced_at) {
+      setLastSyncedAt(r.outcome.last_synced_at);
+    }
+    showHome();
+    return r.outcome;
+  } finally {
+    isSyncing = false;
+  }
+}
+
 function showHome(): void {
   const root = document.getElementById('root') || document.body;
   if (!currentState) return;
@@ -122,10 +163,28 @@ function showHome(): void {
     () => null
   );
 
+  const syncBar = createSyncBar({
+    getSignedIn: () => currentAuth !== null,
+    getLastSyncedAt,
+    onSignIn: async (email, password) => {
+      try {
+        currentAuth = await signIn(fetch, email, password);
+        await saveAuthSession(currentAuth);
+        return null;
+      } catch (err) {
+        return err instanceof SignInError ? err.message : String(err);
+      }
+    },
+    onSyncNow: async () => {
+      return await performSync();
+    },
+  });
+
   renderHome(root, {
     state: currentState,
     nowIso: nowIso(),
     statusElement: statusController.element,
+    syncBarElement: syncBar.element,
     backupButton: makeBackupButton(),
     installElement: makeInstallElement(),
     onStartSession: (size) => startSessionFlow(size),
@@ -226,6 +285,9 @@ function showSummary(): void {
     onHome: () => {
       session = null;
       showHome();
+      if (currentAuth !== null) {
+        performSync().catch(() => {});
+      }
     },
   });
 }
@@ -281,7 +343,17 @@ export async function initApp(): Promise<void> {
       currentState = result.state;
     }
 
+    try {
+      currentAuth = await loadAuthSession();
+    } catch {
+      currentAuth = null;
+    }
+
     showHome();
+
+    if (currentAuth !== null) {
+      performSync().catch(() => {});
+    }
   } catch (err) {
     root.textContent = '';
     const container = document.createElement('div');

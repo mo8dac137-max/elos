@@ -20,6 +20,7 @@ export interface HomeDeps {
   state: ClientState;
   nowIso: string;
   statusElement: HTMLElement;
+  syncBarElement: HTMLElement;
   backupButton: HTMLElement;
   installElement: HTMLElement;
   onStartSession: (size: number) => void;
@@ -33,6 +34,7 @@ export function renderHome(root: HTMLElement, deps: HomeDeps): void {
   const container = createContainer();
   container.appendChild(createHeader('Today'));
   container.appendChild(deps.statusElement);
+  container.appendChild(deps.syncBarElement);
 
   const events = activeEvents(state);
   const nowMs = Date.parse(nowIso);
