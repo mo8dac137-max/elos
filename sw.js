@@ -1,5 +1,5 @@
 // Service worker template for ELOS PWA
-const CACHE_NAME = 'elos-6cbd527975ff';
+const CACHE_NAME = 'elos-2b091c6914f9';
 const PRECACHE = [
   "/",
   "/apple-touch-icon.png",
@@ -34,7 +34,6 @@ const PRECACHE = [
   "/dist/ui/screens/common.js",
   "/dist/ui/screens/corrupt.js",
   "/dist/ui/screens/exercise.js",
-  "/dist/ui/screens/exerciseCard.js",
   "/dist/ui/screens/home.js",
   "/dist/ui/screens/intro.js",
   "/dist/ui/screens/progress.js",
