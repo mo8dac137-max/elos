@@ -22,6 +22,7 @@ export interface HomeDeps {
   statusElement: HTMLElement;
   syncBarElement: HTMLElement;
   backupButton: HTMLElement;
+  backupToolsElement: HTMLElement;
   installElement: HTMLElement;
   onStartSession: (size: number) => void;
   onOpenProgress: () => void;
@@ -82,6 +83,7 @@ export function renderHome(root: HTMLElement, deps: HomeDeps): void {
       createButton('Progress map', deps.onOpenProgress, 'btn-primary')
     );
     container.appendChild(deps.backupButton);
+    container.appendChild(deps.backupToolsElement);
     container.appendChild(deps.installElement);
     root.appendChild(container);
     return;
@@ -115,6 +117,7 @@ export function renderHome(root: HTMLElement, deps: HomeDeps): void {
   );
   container.appendChild(createButton('Progress map', deps.onOpenProgress));
   container.appendChild(deps.backupButton);
+  container.appendChild(deps.backupToolsElement);
   container.appendChild(deps.installElement);
 
   root.appendChild(container);

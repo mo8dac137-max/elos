@@ -1,28 +1,10 @@
 import {
-  createClient,
-  ClientState,
-  activeEvents,
-  deriveFromClient,
-  deriveReviewInfo,
+  createClient, ClientState, activeEvents, deriveFromClient, deriveReviewInfo,
 } from '../kernel/index.js';
-import {
-  Exercise,
-  GeneratorContext,
-  serializeState,
-} from '../app/index.js';
-import {
-  CURRICULUM,
-  PLANNER_CONFIG,
-  findUnitDef,
-  unitTitle,
-} from '../app/curriculum.js';
-import {
-  startSession,
-  nextExercise,
-  needsIntro,
-  summarizeSession,
-  UnitSummary,
-} from '../app/session.js';
+import { Exercise, GeneratorContext, serializeState } from '../app/index.js';
+import { CURRICULUM, PLANNER_CONFIG, findUnitDef, unitTitle } from '../app/curriculum.js';
+import { startSession, nextExercise, needsIntro, summarizeSession, UnitSummary } from '../app/session.js';
+import { buildBackup, parseBackup, mergeBackup } from '../app/backup.js';
 import { IndexedDbClientStore } from './indexedDbStore.js';
 import { copyTextToClipboard } from './screens/clipboard.js';
 import { renderCorruptScreen } from './screens/corrupt.js';
@@ -33,20 +15,12 @@ import { renderExerciseScreen } from './screens/exercise.js';
 import { renderSummary } from './screens/summary.js';
 import { renderProgressMap } from './screens/progress.js';
 import { renderUnitCard } from './screens/unitCard.js';
-import {
-  initPWA,
-  subscribeInstallPrompt,
-  promptInstall,
-} from './pwa.js';
+import { initPWA, subscribeInstallPrompt, promptInstall } from './pwa.js';
 import { signIn, SignInError, AuthSession } from '../sync/auth.js';
 import { runSync, SyncOutcome } from '../sync/sync.js';
-import {
-  loadAuthSession,
-  saveAuthSession,
-  getLastSyncedAt,
-  setLastSyncedAt,
-} from './authStore.js';
+import { loadAuthSession, saveAuthSession, getLastSyncedAt, setLastSyncedAt } from './authStore.js';
 import { createSyncBar } from './screens/syncBar.js';
+import { sha256HexViaSubtle, downloadBackupFile, pickBackupFile } from './backupIo.js';
 
 const store = new IndexedDbClientStore();
 
@@ -124,15 +98,66 @@ function makeInstallElement(): HTMLElement {
   return installContainer;
 }
 
+function makeBackupTools(): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'backup-tools';
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+  const notice = document.createElement('div');
+  notice.className = 'notice-line';
+
+  const exportBtn = document.createElement('button');
+  exportBtn.className = 'btn';
+  exportBtn.textContent = 'Export backup';
+  exportBtn.onclick = async () => {
+    if (!currentState) return;
+    try {
+      notice.textContent = 'Exporting...';
+      const b = await buildBackup(currentState, nowIso(), sha256HexViaSubtle);
+      downloadBackupFile(b);
+      notice.textContent = `Exported ${b.event_count} events`;
+    } catch {
+      notice.textContent = 'Export failed';
+    }
+  };
+
+  const importBtn = document.createElement('button');
+  importBtn.className = 'btn';
+  importBtn.textContent = 'Import backup';
+  importBtn.onclick = async () => {
+    if (!currentState) return;
+    try {
+      const raw = await pickBackupFile();
+      if (!raw) return;
+      notice.textContent = 'Verifying backup...';
+      const parsed = await parseBackup(raw, sha256HexViaSubtle);
+      if (parsed.kind === 'invalid') {
+        notice.textContent = `Import rejected: ${parsed.reason}`;
+        return;
+      }
+      const m = mergeBackup(currentState, parsed.backup);
+      currentState = m.state;
+      await store.save(currentState);
+      notice.textContent = `Imported ${m.added} new (${m.merged} already present)`;
+      showHome();
+      if (currentAuth !== null) {
+        performSync().catch(() => {});
+      }
+    } catch {
+      notice.textContent = 'Import failed';
+    }
+  };
+
+  row.appendChild(exportBtn);
+  row.appendChild(importBtn);
+  container.appendChild(row);
+  container.appendChild(notice);
+  return container;
+}
+
 async function performSync(): Promise<SyncOutcome> {
   if (isSyncing) {
-    return {
-      status: 'offline',
-      pushed: 0,
-      pulled: 0,
-      last_synced_at: null,
-      message: 'Sync already in progress',
-    };
+    return { status: 'offline', pushed: 0, pulled: 0, last_synced_at: null, message: 'Sync already in progress' };
   }
   if (!currentAuth || !currentState) {
     return { status: 'not_signed_in', pushed: 0, pulled: 0, last_synced_at: null };
@@ -186,6 +211,7 @@ function showHome(): void {
     statusElement: statusController.element,
     syncBarElement: syncBar.element,
     backupButton: makeBackupButton(),
+    backupToolsElement: makeBackupTools(),
     installElement: makeInstallElement(),
     onStartSession: (size) => startSessionFlow(size),
     onOpenProgress: () => {
@@ -203,14 +229,8 @@ function startSessionFlow(size: number): void {
     return;
   }
   session = {
-    tasks,
-    index: 0,
-    introShown: [],
-    before: allUnitSummaries(currentState),
-    answered: 0,
-    correct: 0,
-    touched: new Set<string>(),
-    lastItemId: null,
+    tasks, index: 0, introShown: [], before: allUnitSummaries(currentState),
+    answered: 0, correct: 0, touched: new Set<string>(), lastItemId: null,
   };
   renderSessionStep();
 }
@@ -358,15 +378,12 @@ export async function initApp(): Promise<void> {
     root.textContent = '';
     const container = document.createElement('div');
     container.className = 'container';
-
     const errHeading = document.createElement('h1');
     errHeading.className = 'error-text';
     errHeading.textContent = 'Error';
-
     const errMsg = document.createElement('p');
     errMsg.className = 'notice-line';
     errMsg.textContent = err instanceof Error ? err.message : String(err);
-
     container.appendChild(errHeading);
     container.appendChild(errMsg);
     root.appendChild(container);
