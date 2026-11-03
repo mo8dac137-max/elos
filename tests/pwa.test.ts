@@ -86,9 +86,9 @@ describe('Milestone E.1: PWA and Service Worker generator', () => {
     const precacheList = JSON.parse(precacheMatch[1]) as string[];
     assert.ok(Array.isArray(precacheList));
     assert.ok(precacheList.length > 0, 'PRECACHE list must not be empty');
-    assert.ok(precacheList.includes('/'), 'PRECACHE must include /');
-    assert.ok(precacheList.includes('/index.html'), 'PRECACHE must include /index.html');
-    assert.ok(precacheList.includes('/manifest.webmanifest'), 'PRECACHE must include /manifest.webmanifest');
+    assert.ok(precacheList.includes('./'), 'PRECACHE must include ./');
+    assert.ok(precacheList.includes('./index.html'), 'PRECACHE must include ./index.html');
+    assert.ok(precacheList.includes('./manifest.webmanifest'), 'PRECACHE must include ./manifest.webmanifest');
 
     // Check that every .js file under dist is listed in PRECACHE
     const distDir = path.join(rootDir, 'dist');
@@ -102,7 +102,7 @@ describe('Milestone E.1: PWA and Service Worker generator', () => {
           if (entry.isDirectory()) {
             results = results.concat(collectJsFiles(full, rel));
           } else if (entry.isFile() && entry.name.endsWith('.js')) {
-            results.push('/dist/' + rel.replace(/\\/g, '/'));
+            results.push('./dist/' + rel.replace(/\\/g, '/'));
           }
         }
         return results;
@@ -119,9 +119,9 @@ describe('Milestone E.1: PWA and Service Worker generator', () => {
 
     for (const urlPath of precacheList) {
       const diskPath =
-        urlPath === '/' || urlPath === '/index.html'
+        urlPath === './' || urlPath === './index.html'
           ? path.join(rootDir, 'index.html')
-          : path.join(rootDir, urlPath.startsWith('/') ? urlPath.slice(1) : urlPath);
+          : path.join(rootDir, urlPath.startsWith('./') ? urlPath.slice(2) : urlPath);
 
       assert.ok(
         fs.existsSync(diskPath),

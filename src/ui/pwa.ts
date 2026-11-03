@@ -101,7 +101,7 @@ export function initPWA(): void {
       hadControllerOnLoad = Boolean(navigator.serviceWorker.controller);
 
       navigator.serviceWorker
-        .register('/sw.js')
+        .register('./sw.js')
         .then((registration) => {
           registration.update().catch(() => {});
 

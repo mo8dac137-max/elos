@@ -1,6 +1,7 @@
 // Service worker template for ELOS PWA
 const CACHE_NAME = '__CACHE_NAME__';
 const PRECACHE = __PRECACHE_LIST__;
+const INDEX_URL = new URL('index.html', self.registration.scope).href;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -37,11 +38,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: respond with the cached "/index.html" from CACHE_NAME (network only if it is missing)
+  // Navigation requests: respond with the cached index resolved against the registration scope (network only if it is missing)
   if (req.mode === 'navigate') {
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match('/index.html');
+        const cached = await cache.match(INDEX_URL);
         if (cached) {
           return cached;
         }

@@ -23,7 +23,7 @@ function collectFilesRecursively(dir: string, baseDir: string): string[] {
       results.push(...collectFilesRecursively(fullPath, baseDir));
     } else if (entry.isFile() && entry.name.endsWith('.js')) {
       const relPath = path.relative(baseDir, fullPath).split(path.sep).join('/');
-      results.push(`/${relPath}`);
+      results.push('./' + relPath);
     }
   }
 
@@ -41,7 +41,11 @@ function findPngIcons(): string[] {
       if (Array.isArray(manifest.icons)) {
         for (const icon of manifest.icons) {
           if (icon && typeof icon.src === 'string' && icon.src.endsWith('.png')) {
-            const normalized = icon.src.startsWith('/') ? icon.src : `/${icon.src}`;
+            const normalized = icon.src.startsWith('./')
+              ? icon.src
+              : icon.src.startsWith('/')
+                ? `./${icon.src.slice(1)}`
+                : `./${icon.src}`;
             icons.add(normalized);
           }
         }
@@ -61,7 +65,11 @@ function findPngIcons(): string[] {
     const linkMatches = indexHtml.matchAll(/<link[^>]+href=["']([^"']+\.png)["'][^>]*>/gi);
     for (const match of linkMatches) {
       const href = match[1];
-      const normalized = href.startsWith('/') ? href : `/${href}`;
+      const normalized = href.startsWith('./')
+        ? href
+        : href.startsWith('/')
+          ? `./${href.slice(1)}`
+          : `./${href}`;
       icons.add(normalized);
     }
   } else {
@@ -82,9 +90,9 @@ function main() {
   const distJsFiles = collectFilesRecursively(distDir, rootDir);
 
   const precacheUrls = new Set<string>([
-    '/',
-    '/index.html',
-    '/manifest.webmanifest',
+    './',
+    './index.html',
+    './manifest.webmanifest',
     ...icons,
     ...distJsFiles,
   ]);
@@ -96,10 +104,10 @@ function main() {
 
   for (const urlPath of sortedPrecache) {
     let diskPath: string;
-    if (urlPath === '/' || urlPath === '/index.html') {
+    if (urlPath === './' || urlPath === './index.html') {
       diskPath = indexPath;
     } else {
-      const relPath = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath;
+      const relPath = urlPath.startsWith('./') ? urlPath.slice(2) : urlPath;
       diskPath = path.join(rootDir, relPath);
     }
 
