@@ -1,0 +1,37 @@
+# ELOS AI Gateway setup (Milestone H1) — owner runbook
+
+Do these steps once, in order. About 5 minutes total.
+
+## 1. Run the database migration
+- Open **SQL Editor** → **New query**.
+- Copy the WHOLE file `supabase/migrations/0002_ai_ledger.sql` from the repository and paste it into the editor.
+- Press **Run**. Expected result: `Success. No rows returned`.
+- (بالعربية: انسخ ملف supabase/migrations/0002_ai_ledger.sql كاملًا والصقه في SQL Editor ثم اضغط Run. المتوقع: Success. No rows returned.)
+
+## 2. Get a Gemini API key
+- Go to https://aistudio.google.com → **Get API key** → create a key in the free tier.
+- NEVER paste this key into the chat, the repository, or any code file.
+- (بالعربية: احصل على المفتاح من Google AI Studio ولا ترسله لأحد أبدًا.)
+
+## 3. Deploy the function
+- Open **Edge Functions** in your Supabase Dashboard → **Create a new function**.
+- Name it EXACTLY `ai-gateway`.
+- Paste the whole content of `supabase/functions/ai-gateway/index.ts`.
+- Keep **Verify JWT** ENABLED.
+- Click **Deploy**. First deploy may take a minute to become live.
+- (بالعربية: افتح Edge Functions وأنشئ دالة جديدة بالاسم ai-gateway والصق محتوى supabase/functions/ai-gateway/index.ts مع تفعيل Verify JWT ثم اضغط Deploy.)
+
+## 4. Set the secret
+- In Edge Functions → **Manage secrets** (or Secrets) → add `GEMINI_API_KEY` with the key's value.
+- Optional secrets: `GEMINI_MODEL` (default `gemini-flash-latest`) and `AI_DAILY_CAP` (default `200`).
+- (بالعربية: أضف السر GEMINI_API_KEY بقيمة المفتاح، واختياريًا GEMINI_MODEL و AI_DAILY_CAP.)
+
+## 5. Test connection
+- Open the app → sign in → click **Test AI connection**.
+- Expected: `AI ready ... Reply: pong`.
+- If it reports a model problem, set `GEMINI_MODEL` to a current Flash model name and test again.
+- (بالعربية: افتح التطبيق، وسجل الدخول، واضغط Test AI connection للتأكد من اتصال pong بنجاح.)
+
+## 6. No-AI mode
+- With no key set, the button reports `AI disabled` and every learning feature keeps working offline.
+- (بالعربية: في حال عدم تعيين مفتاح، يوضح التطبيق أن الذكاء الاصطناعي معطل، وتستمر جميع وظائف التعلم بالعمل دون اتصال.)

@@ -21,6 +21,8 @@ import { runSync, SyncOutcome } from '../sync/sync.js';
 import { loadAuthSession, saveAuthSession, getLastSyncedAt, setLastSyncedAt } from './authStore.js';
 import { createSyncBar } from './screens/syncBar.js';
 import { sha256HexViaSubtle, downloadBackupFile, pickBackupFile } from './backupIo.js';
+import { callAi } from '../ai/gateway.js';
+import { createAiCard } from './screens/aiCard.js';
 
 const store = new IndexedDbClientStore();
 
@@ -204,8 +206,14 @@ function showHome(): void {
         return err instanceof SignInError ? err.message : String(err);
       }
     },
-    onSyncNow: async () => {
-      return await performSync();
+    onSyncNow: () => performSync(),
+  });
+
+  const aiCard = createAiCard({
+    getSignedIn: () => currentAuth !== null,
+    onTestAi: async () => {
+      if (!currentAuth) return { status: 'not_signed_in' };
+      return callAi(fetch, currentAuth, 'ping', {});
     },
   });
 
@@ -214,14 +222,12 @@ function showHome(): void {
     nowIso: nowIso(),
     statusElement: statusController.element,
     syncBarElement: syncBar.element,
+    aiCardElement: aiCard.element,
     backupButton: makeBackupButton(),
     backupToolsElement: makeBackupTools(),
     installElement: makeInstallElement(),
     onStartSession: (size) => startSessionFlow(size),
-    onOpenProgress: () => {
-      progressUnitId = null;
-      showProgress();
-    },
+    onOpenProgress: () => { progressUnitId = null; showProgress(); },
   });
 }
 
@@ -283,11 +289,8 @@ function renderSessionStep(): void {
     onNext: () => {
       if (!session) return;
       session.index += 1;
-      if (session.index >= session.tasks.length) {
-        showSummary();
-      } else {
-        renderSessionStep();
-      }
+      if (session.index >= session.tasks.length) showSummary();
+      else renderSessionStep();
     },
   });
 }
@@ -309,9 +312,7 @@ function showSummary(): void {
     onHome: () => {
       session = null;
       showHome();
-      if (currentAuth !== null) {
-        performSync().catch(() => {});
-      }
+      if (currentAuth !== null) performSync().catch(() => {});
     },
   });
 }

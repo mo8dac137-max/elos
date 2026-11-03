@@ -21,6 +21,7 @@ export interface HomeDeps {
   nowIso: string;
   statusElement: HTMLElement;
   syncBarElement: HTMLElement;
+  aiCardElement: HTMLElement;
   backupButton: HTMLElement;
   backupToolsElement: HTMLElement;
   installElement: HTMLElement;
@@ -36,6 +37,7 @@ export function renderHome(root: HTMLElement, deps: HomeDeps): void {
   container.appendChild(createHeader('Today'));
   container.appendChild(deps.statusElement);
   container.appendChild(deps.syncBarElement);
+  container.appendChild(deps.aiCardElement);
 
   const events = activeEvents(state);
   const nowMs = Date.parse(nowIso);
