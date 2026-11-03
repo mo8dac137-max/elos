@@ -22,6 +22,7 @@ import { loadAuthSession, saveAuthSession, getLastSyncedAt, setLastSyncedAt } fr
 import { createSyncBar } from './screens/syncBar.js';
 import { sha256HexViaSubtle, downloadBackupFile, pickBackupFile } from './backupIo.js';
 import { callAi } from '../ai/gateway.js';
+import { explainUnit } from '../ai/explain.js';
 import { createAiCard } from './screens/aiCard.js';
 
 const store = new IndexedDbClientStore();
@@ -211,10 +212,7 @@ function showHome(): void {
 
   const aiCard = createAiCard({
     getSignedIn: () => currentAuth !== null,
-    onTestAi: async () => {
-      if (!currentAuth) return { status: 'not_signed_in' };
-      return callAi(fetch, currentAuth, 'ping', {});
-    },
+    onTestAi: () => callAi(fetch, currentAuth, 'ping', {}),
   });
 
   renderHome(root, {
@@ -332,6 +330,7 @@ function showProgress(): void {
           progressUnitId = null;
           showProgress();
         },
+        onExplainAi: () => explainUnit(fetch, currentAuth, unitDef),
       });
       return;
     }

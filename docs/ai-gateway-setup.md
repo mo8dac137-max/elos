@@ -19,7 +19,8 @@ Do these steps once, in order. About 5 minutes total.
 - Paste the whole content of `supabase/functions/ai-gateway/index.ts`.
 - Keep **Verify JWT** ENABLED.
 - Click **Deploy**. First deploy may take a minute to become live.
-- (بالعربية: افتح Edge Functions وأنشئ دالة جديدة بالاسم ai-gateway والصق محتوى supabase/functions/ai-gateway/index.ts مع تفعيل Verify JWT ثم اضغط Deploy.)
+- **Redeploying after updates:** whenever `supabase/functions/ai-gateway/index.ts` changes in the repository, repeat this step with the new file (open your function → paste the new code → Deploy). The app tells you when this is needed (e.g. the explain button reports the server needs the updated function).
+- (بالعربية: افتح Edge Functions وأنشئ دالة جديدة بالاسم ai-gateway والصق محتوى supabase/functions/ai-gateway/index.ts مع تفعيل Verify JWT ثم اضغط Deploy. وعند أي تحديث للملف في المستودع أعِد نفس الخطوة بالكود الجديد.)
 
 ## 4. Set the secret
 - In Edge Functions → **Manage secrets** (or Secrets) → add `GEMINI_API_KEY` with the key's value.
@@ -32,6 +33,13 @@ Do these steps once, in order. About 5 minutes total.
 - If it reports a model problem, set `GEMINI_MODEL` to a current Flash model name and test again.
 - (بالعربية: افتح التطبيق، وسجل الدخول، واضغط Test AI connection للتأكد من اتصال pong بنجاح.)
 
-## 6. No-AI mode
+## 6. Explain with AI (H2)
+- Open the app → **Progress map** → tap a unit → **Explain with AI (Arabic)**.
+- Requires sign-in and the CURRENT function version from step 3.
+- The reply is a simple Arabic explanation in a fixed five-part scaffold (الفكرة / خطوات / أمثلة جديدة / انتبه / جرّب).
+- It is plain help only: it never changes your progress, and no personal learning data is sent to the AI.
+- (بالعربية: من خريطة التقدم افتح الوحدة واضغط Explain with AI (Arabic) لشرح عربي مبسط بخمسة أقسام ثابتة. الشرح مجرد مساعدة ولا يؤثر على بيانات تقدمك، ولا تُرسل أي بيانات شخصية للذكاء الاصطناعي.)
+
+## 7. No-AI mode
 - With no key set, the button reports `AI disabled` and every learning feature keeps working offline.
 - (بالعربية: في حال عدم تعيين مفتاح، يوضح التطبيق أن الذكاء الاصطناعي معطل، وتستمر جميع وظائف التعلم بالعمل دون اتصال.)
