@@ -33,8 +33,9 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Build
-       #      - name: Test
-#        run: npm test
+        run: npm run build
+      - name: Test
+        run: npm test
       - name: Assemble site
         run: |
           mkdir -p site
