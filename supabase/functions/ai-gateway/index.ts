@@ -189,18 +189,38 @@ Deno.serve(async (req: Request) => {
     const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-flash-latest';
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
+    const GEMINI_TIMEOUT_MS = 25_000;
+    const requestBody = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+
+    /** Bounded Gemini call: aborts after GEMINI_TIMEOUT_MS instead of hanging. */
+    async function postGemini(): Promise<Response> {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+      try {
+        return await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     let status: 'ok' | 'error' = 'ok';
     let errorCode: string | null = null;
     let text = '';
 
     try {
-      const geminiRes = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        }),
-      });
+      let geminiRes = await postGemini();
+      // One retry on transient Google overload / rate limiting (fast failures only).
+      if (geminiRes.status === 503 || geminiRes.status === 429) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        geminiRes = await postGemini();
+      }
 
       if (!geminiRes.ok) {
         status = 'error';
@@ -218,9 +238,9 @@ Deno.serve(async (req: Request) => {
           errorCode = 'bad_response';
         }
       }
-    } catch {
+    } catch (err) {
       status = 'error';
-      errorCode = 'network';
+      errorCode = err instanceof Error && err.name === 'AbortError' ? 'timeout' : 'network';
     }
 
     if (task === 'explain_unit' && status === 'ok' && !isValidExplanation(text)) {

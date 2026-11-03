@@ -38,7 +38,8 @@ Do these steps once, in order. About 5 minutes total.
 - Requires sign-in and the CURRENT function version from step 3.
 - The reply is a simple Arabic explanation in a fixed five-part scaffold (الفكرة / خطوات / أمثلة جديدة / انتبه / جرّب).
 - It is plain help only: it never changes your progress, and no personal learning data is sent to the AI.
-- (بالعربية: من خريطة التقدم افتح الوحدة واضغط Explain with AI (Arabic) لشرح عربي مبسط بخمسة أقسام ثابتة. الشرح مجرد مساعدة ولا يؤثر على بيانات تقدمك، ولا تُرسل أي بيانات شخصية للذكاء الاصطناعي.)
+- Waiting up to ~30 seconds is normal on the free tier. If Google is congested (`http_503`) the function retries once automatically; if a call exceeds 25 seconds it stops with `AI error: timeout` instead of hanging forever. Both are transient — just try again.
+- (بالعربية: من خريطة التقدم افتح الوحدة واضغط Explain with AI (Arabic) لشرح عربي مبسط بخمسة أقسام ثابتة. الشرح مجرد مساعدة ولا يؤثر على بيانات تقدمك، ولا تُرسل أي بيانات شخصية للذكاء الاصطناعي. الانتظار حتى 30 ثانية طبيعي في الخطة المجانية؛ عند ازدحام Google يعيد النظام المحاولة مرة تلقائيًا، وإذا تجاوز الطلب 25 ثانية يتوقف برسالة timeout بدل التعليق — أعِد المحاولة فقط.)
 
 ## 7. No-AI mode
 - With no key set, the button reports `AI disabled` and every learning feature keeps working offline.

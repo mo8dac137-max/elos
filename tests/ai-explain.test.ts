@@ -105,6 +105,9 @@ describe('ELOS Milestone H2 - explain_unit client wrapper', () => {
     assert.ok(content.includes('bad_output'), 'invalid output code exists');
     assert.ok(content.includes('\\u0600-\\u06FF'), 'Arabic-script check present');
     assert.ok(content.includes('GEMINI_API_KEY'), 'key still read from env only');
+    assert.ok(content.includes('GEMINI_TIMEOUT_MS'), 'bounded Gemini call exists');
+    assert.ok(content.includes("=== 503 || geminiRes.status === 429"), 'one retry on transient overload');
+    assert.ok(content.includes("'timeout'"), 'timeout error code exists');
   });
 
   it('UI wiring statics: unitCard exposes the explain button and main wires explainUnit', () => {
