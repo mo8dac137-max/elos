@@ -97,6 +97,11 @@ function isValidExplanation(text: string): boolean {
   return text.includes('الفكرة');
 }
 
+/** Transient Google statuses worth another attempt: rate limit, internal, overloaded. */
+function isRetryable(status: number): boolean {
+  return status === 429 || status === 500 || status === 503;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -216,9 +221,11 @@ Deno.serve(async (req: Request) => {
 
     try {
       let geminiRes = await postGemini();
-      // One retry on transient Google overload / rate limiting (fast failures only).
-      if (geminiRes.status === 503 || geminiRes.status === 429) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Up to two retries with backoff on transient Google congestion
+      // (fast failures only; a 25s timeout aborts the whole call instead).
+      for (const backoffMs of [2000, 5000]) {
+        if (!isRetryable(geminiRes.status)) break;
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         geminiRes = await postGemini();
       }
 

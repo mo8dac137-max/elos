@@ -25,7 +25,8 @@ Do these steps once, in order. About 5 minutes total.
 ## 4. Set the secret
 - In Edge Functions → **Manage secrets** (or Secrets) → add `GEMINI_API_KEY` with the key's value.
 - Optional secrets: `GEMINI_MODEL` (default `gemini-flash-latest`) and `AI_DAILY_CAP` (default `200`).
-- (بالعربية: أضف السر GEMINI_API_KEY بقيمة المفتاح، واختياريًا GEMINI_MODEL و AI_DAILY_CAP.)
+- Free-tier congestion tip: if `Explain with AI` often reports `http_503` (Google overloaded — common at peak hours on the newest Flash), set `GEMINI_MODEL` to a stable high-throughput model such as `gemini-3.5-flash-lite`. This is the designed switch and needs no redeploy; delete the secret to return to the default.
+- (بالعربية: أضف السر GEMINI_API_KEY بقيمة المفتاح، واختياريًا GEMINI_MODEL و AI_DAILY_CAP. عند تكرار خطأ http_503 بسبب ازدحام النسخة المجانية، غيّر GEMINI_MODEL إلى gemini-3.5-flash-lite — تبديل مصمم في الإعدادات بلا إعادة نشر، واحذف السر للعودة للافتراضي.)
 
 ## 5. Test connection
 - Open the app → sign in → click **Test AI connection**.
@@ -38,7 +39,7 @@ Do these steps once, in order. About 5 minutes total.
 - Requires sign-in and the CURRENT function version from step 3.
 - The reply is a simple Arabic explanation in a fixed five-part scaffold (الفكرة / خطوات / أمثلة جديدة / انتبه / جرّب).
 - It is plain help only: it never changes your progress, and no personal learning data is sent to the AI.
-- Waiting up to ~30 seconds is normal on the free tier. If Google is congested (`http_503`) the function retries once automatically; if a call exceeds 25 seconds it stops with `AI error: timeout` instead of hanging forever. Both are transient — just try again.
+- Waiting up to ~40 seconds is normal on the free tier. If Google is congested (`http_503`) the function retries up to twice automatically; if a call exceeds 25 seconds it stops with `AI error: timeout` instead of hanging forever. Both are transient — just try again, or switch the model via the `GEMINI_MODEL` secret (see step 4).
 - (بالعربية: من خريطة التقدم افتح الوحدة واضغط Explain with AI (Arabic) لشرح عربي مبسط بخمسة أقسام ثابتة. الشرح مجرد مساعدة ولا يؤثر على بيانات تقدمك، ولا تُرسل أي بيانات شخصية للذكاء الاصطناعي. الانتظار حتى 30 ثانية طبيعي في الخطة المجانية؛ عند ازدحام Google يعيد النظام المحاولة مرة تلقائيًا، وإذا تجاوز الطلب 25 ثانية يتوقف برسالة timeout بدل التعليق — أعِد المحاولة فقط.)
 
 ## 7. No-AI mode
