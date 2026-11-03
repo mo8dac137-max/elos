@@ -29,6 +29,15 @@ jobs:
         run: npm ci
       - name: Build project
         run: npm run build
+      - name: Copy static files to dist
+        run: |
+          cp index.html dist/
+          cp manifest.webmanifest dist/
+          cp sw.js dist/
+          cp icon-192.png dist/
+          cp icon-512.png dist/
+          cp icon-maskable-512.png dist/
+          cp apple-touch-icon.png dist/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
