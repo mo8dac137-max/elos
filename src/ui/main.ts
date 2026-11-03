@@ -15,6 +15,7 @@ import { renderExerciseScreen } from './screens/exercise.js';
 import { renderSummary } from './screens/summary.js';
 import { renderProgressMap } from './screens/progress.js';
 import { renderUnitCard } from './screens/unitCard.js';
+import { createDictSection } from './screens/dictSection.js';
 import { initPWA, subscribeInstallPrompt, promptInstall } from './pwa.js';
 import { signIn, SignInError, AuthSession } from '../sync/auth.js';
 import { runSync, SyncOutcome } from '../sync/sync.js';
@@ -326,6 +327,7 @@ function showProgress(): void {
       renderUnitCard(root, {
         unitDef,
         stateLabel: state,
+        dictSection: createDictSection(unitDef.id),
         onBack: () => {
           progressUnitId = null;
           showProgress();

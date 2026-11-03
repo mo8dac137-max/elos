@@ -13,6 +13,8 @@ import {
 export interface UnitCardDeps {
   unitDef: CurriculumUnitDef;
   stateLabel: string;
+  /** I2: the self-loading dictionary section (word units only, else null). */
+  dictSection?: HTMLElement | null;
   onBack: () => void;
   onExplainAi: () => Promise<AiOutcome>;
 }
@@ -76,6 +78,10 @@ export function renderUnitCard(root: HTMLElement, deps: UnitCardDeps): void {
 
   card.appendChild(createSectionLabel('Common mistake'));
   card.appendChild(createRtlBlock(unitDef.common_mistake_ar));
+
+  if (deps.dictSection) {
+    card.appendChild(deps.dictSection);
+  }
 
   card.appendChild(createSectionLabel('AI help'));
   const explainBtn = createButton('Explain with AI (Arabic)', async () => {
