@@ -28,6 +28,7 @@ let currentState: ClientState | null = null;
 let currentAuth: AuthSession | null = null;
 let progressUnitId: string | null = null;
 let isSyncing = false;
+let backupNotice = '';
 
 interface SessionRun {
   tasks: ReturnType<typeof startSession>;
@@ -105,19 +106,24 @@ function makeBackupTools(): HTMLElement {
   row.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
   const notice = document.createElement('div');
   notice.className = 'notice-line';
+  notice.textContent = backupNotice;
+  const setMsg = (msg: string) => { backupNotice = msg; notice.textContent = msg; };
 
   const exportBtn = document.createElement('button');
   exportBtn.className = 'btn';
   exportBtn.textContent = 'Export backup';
   exportBtn.onclick = async () => {
     if (!currentState) return;
+    setMsg('');
+    exportBtn.disabled = true;
     try {
-      notice.textContent = 'Exporting...';
       const b = await buildBackup(currentState, nowIso(), sha256HexViaSubtle);
       downloadBackupFile(b);
-      notice.textContent = `Exported ${b.event_count} events`;
-    } catch {
-      notice.textContent = 'Export failed';
+      setMsg('Backup exported (' + b.event_count + ' events).');
+    } catch (err) {
+      setMsg('Export failed: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      exportBtn.disabled = false;
     }
   };
 
@@ -125,26 +131,24 @@ function makeBackupTools(): HTMLElement {
   importBtn.className = 'btn';
   importBtn.textContent = 'Import backup';
   importBtn.onclick = async () => {
-    if (!currentState) return;
+    setMsg('');
+    importBtn.disabled = true;
     try {
       const raw = await pickBackupFile();
-      if (!raw) return;
-      notice.textContent = 'Verifying backup...';
+      if (raw === null) return;
+      if (!currentState) { setMsg('Import failed: no local state'); return; }
       const parsed = await parseBackup(raw, sha256HexViaSubtle);
-      if (parsed.kind === 'invalid') {
-        notice.textContent = `Import rejected: ${parsed.reason}`;
-        return;
-      }
+      if (parsed.kind === 'invalid') { setMsg('Import failed: ' + parsed.reason); return; }
       const m = mergeBackup(currentState, parsed.backup);
       currentState = m.state;
       await store.save(currentState);
-      notice.textContent = `Imported ${m.added} new (${m.merged} already present)`;
+      setMsg('Imported: added ' + m.added + ', merged ' + m.merged + '.');
       showHome();
-      if (currentAuth !== null) {
-        performSync().catch(() => {});
-      }
-    } catch {
-      notice.textContent = 'Import failed';
+      if (currentAuth !== null) performSync().catch(() => {});
+    } catch (err) {
+      setMsg('Import failed: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      importBtn.disabled = false;
     }
   };
 
