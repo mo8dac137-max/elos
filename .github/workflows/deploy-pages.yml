@@ -32,10 +32,10 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Test
-        run: npm test
       - name: Build
         run: npm run build
+      - name: Test
+        run: npm test
       - name: Assemble site
         run: |
           mkdir -p site
