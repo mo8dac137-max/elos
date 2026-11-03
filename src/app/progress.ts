@@ -5,9 +5,8 @@ import {
   deriveFromClient,
   deriveReviewInfo,
 } from '../kernel/index.js';
-import { GRAMMAR_PACK } from '../content/grammar-pack.js';
+import { ALL_UNIT_DEFS, PLANNER_CONFIG } from './curriculum.js';
 import type { CefrBand } from '../content/types.js';
-import { PLANNER_CONFIG } from './curriculum.js';
 
 export type DueInfo =
   | { kind: 'not_started' }
@@ -38,7 +37,7 @@ export function buildProgressMap(state: ClientState, nowIso: string): ProgressBa
   const nowMs = Date.parse(nowIso);
   const byBand = new Map<CefrBand, ProgressUnit[]>();
 
-  for (const unitDef of GRAMMAR_PACK.units) {
+  for (const unitDef of ALL_UNIT_DEFS) {
     const derived = deriveFromClient(state, unitDef.id, PLANNER_CONFIG.derive);
 
     let due: DueInfo;

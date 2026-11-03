@@ -5,6 +5,7 @@ import {
   recordLocalEvent,
 } from '../kernel/index.js';
 import { GRAMMAR_PACK } from '../content/grammar-pack.js';
+import { WORD_PACK } from '../content/word-pack.js';
 import type { ItemDef } from '../content/types.js';
 
 export type ExerciseTaskClass = 'recognition_item' | 'controlled_recall';
@@ -19,6 +20,7 @@ export interface Exercise {
   answer: string;
   accepted?: string[];
   note_en?: string;
+  skill: string;
 }
 
 function toExercise(item: ItemDef): Exercise {
@@ -32,11 +34,15 @@ function toExercise(item: ItemDef): Exercise {
     answer: item.answer,
     accepted: item.accepted,
     note_en: item.note_en,
+    skill: item.skill ?? 'grammar',
   };
 }
 
-// Every grammar-pack item, in pack order.
-export const EXERCISE_BANK: Exercise[] = GRAMMAR_PACK.items.map(toExercise);
+// Every grammar-pack item in pack order, then every word-pack item.
+export const EXERCISE_BANK: Exercise[] = [
+  ...GRAMMAR_PACK.items,
+  ...WORD_PACK.items,
+].map(toExercise);
 
 export function normalizeAnswer(str: string): string {
   let s = str.trim().toLowerCase();
@@ -83,7 +89,7 @@ export function buildEvidenceEvent(
       response,
     },
     unit_refs: [exercise.unit_id],
-    skill: 'grammar',
+    skill: exercise.skill,
     modality,
     task_class: exercise.task_class,
     context_id: exercise.context_id,

@@ -22,6 +22,8 @@ export interface ItemDef {
   answer: string;
   accepted?: string[];
   note_en?: string;
+  /** Which skill this item trains; defaults to 'grammar' (Milestone I1). */
+  skill?: 'grammar' | 'vocabulary';
 }
 
 export interface GrammarPack {

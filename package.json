@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run build && node dev-server.js",
-    "test": "tsx --test tests/kernel.test.ts tests/admissibility.test.ts tests/sync.test.ts tests/app.test.ts tests/pwa.test.ts tests/content.test.ts tests/schedule.test.ts tests/planner.test.ts tests/source-size.test.ts tests/supabase-sql.test.ts tests/sync-driver.test.ts tests/backup.test.ts tests/ai-gateway.test.ts tests/ai-explain.test.ts tests/pages.test.ts",
+    "test": "tsx --test tests/kernel.test.ts tests/admissibility.test.ts tests/sync.test.ts tests/app.test.ts tests/pwa.test.ts tests/content.test.ts tests/schedule.test.ts tests/planner.test.ts tests/source-size.test.ts tests/supabase-sql.test.ts tests/sync-driver.test.ts tests/backup.test.ts tests/ai-gateway.test.ts tests/ai-explain.test.ts tests/word-pack.test.ts tests/pages.test.ts",
     "lint": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && tsx scripts/build-sw.ts"
   },

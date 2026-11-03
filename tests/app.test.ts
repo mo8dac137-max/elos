@@ -37,6 +37,7 @@ import {
   unitTitle,
 } from '../src/app/curriculum.js';
 import { GRAMMAR_PACK } from '../src/content/grammar-pack.js';
+import { WORD_PACK } from '../src/content/word-pack.js';
 
 function byId(id: string): Exercise {
   const item = EXERCISE_BANK.find((e) => e.id === id);
@@ -48,9 +49,10 @@ const GO_UNIT = 'grammar:go-went-gone';
 const PS_UNIT = 'grammar:present-simple-s';
 
 describe('ELOS App & Exercise Logic - Milestone F3', () => {
-  it('EXERCISE_BANK mirrors GRAMMAR_PACK.items in pack order, including accepted and note_en', () => {
-    assert.strictEqual(EXERCISE_BANK.length, GRAMMAR_PACK.items.length);
-    assert.strictEqual(EXERCISE_BANK.length, 88);
+  it('EXERCISE_BANK: grammar items first (mirroring GRAMMAR_PACK), then word-pack items', () => {
+    assert.strictEqual(GRAMMAR_PACK.items.length, 88);
+    assert.strictEqual(EXERCISE_BANK.length, GRAMMAR_PACK.items.length + WORD_PACK.items.length);
+    assert.strictEqual(EXERCISE_BANK.length, 160);
 
     for (let i = 0; i < GRAMMAR_PACK.items.length; i++) {
       const item = GRAMMAR_PACK.items[i];
@@ -469,15 +471,25 @@ describe('ELOS App & Exercise Logic - Milestone F3', () => {
     );
   });
 
-  it('curriculum: CURRICULUM mirrors the pack units with order = array index; unitTitle falls back to the id', () => {
-    assert.strictEqual(CURRICULUM.length, GRAMMAR_PACK.units.length);
+  it('curriculum: grammar and words interleaved (order = array index); unitTitle falls back to the id', () => {
+    assert.strictEqual(CURRICULUM.length, GRAMMAR_PACK.units.length + WORD_PACK.units.length);
+    assert.strictEqual(CURRICULUM.length, 35);
+    // Grammar units on the even slots in pack order, words on the odd slots
+    // (after the grammar pack runs out, the remaining words fill sequentially).
+    for (let i = 0; i < GRAMMAR_PACK.units.length; i++) {
+      assert.strictEqual(CURRICULUM[2 * i].id, GRAMMAR_PACK.units[i].id);
+      assert.strictEqual(CURRICULUM[2 * i].cefr, GRAMMAR_PACK.units[i].cefr);
+      assert.deepStrictEqual(CURRICULUM[2 * i].prerequisites, GRAMMAR_PACK.units[i].prerequisites);
+    }
+    for (let i = 0; i < WORD_PACK.units.length; i++) {
+      const wordIndex = i < GRAMMAR_PACK.units.length ? 2 * i + 1 : i + GRAMMAR_PACK.units.length;
+      assert.strictEqual(CURRICULUM[wordIndex].id, WORD_PACK.units[i].id);
+    }
     for (let i = 0; i < CURRICULUM.length; i++) {
-      assert.strictEqual(CURRICULUM[i].id, GRAMMAR_PACK.units[i].id);
-      assert.strictEqual(CURRICULUM[i].cefr, GRAMMAR_PACK.units[i].cefr);
-      assert.deepStrictEqual(CURRICULUM[i].prerequisites, GRAMMAR_PACK.units[i].prerequisites);
       assert.strictEqual(CURRICULUM[i].order, i);
     }
     assert.strictEqual(unitTitle(PS_UNIT), 'Present simple: he/she/it + -s');
+    assert.strictEqual(unitTitle('word:book'), 'Word: book');
     assert.strictEqual(unitTitle('grammar:not-a-unit'), 'grammar:not-a-unit');
   });
 
