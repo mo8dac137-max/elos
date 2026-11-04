@@ -9,9 +9,9 @@ import { createClient } from '../src/kernel/index.js';
 
 const ARABIC = /[\u0600-\u06FF]/;
 
-describe('ELOS Milestone I1 - first vocabulary pack', () => {
-  it('structure: 24 unique words, valid pos, Arabic glosses, English examples containing the lemma exactly once', () => {
-    assert.strictEqual(WORD_COUNT, 24);
+describe('ELOS Milestones I1 + I3 - vocabulary packs (two batches)', () => {
+  it('structure: 48 unique words (batch 1 + batch 2), valid pos, Arabic glosses, English examples containing the lemma exactly once', () => {
+    assert.strictEqual(WORD_COUNT, 48);
     const ids = new Set<string>();
     for (const def of WORD_DEFS) {
       assert.ok(/^[a-z]+$/.test(def.id), `lemma must be lowercase letters: ${def.id}`);
@@ -136,9 +136,9 @@ describe('ELOS Milestone I1 - first vocabulary pack', () => {
     assert.deepStrictEqual(bookEntry.due, { kind: 'not_started' });
 
     // Interleaved: word:book sits right after the first grammar unit.
-    // A1 holds 2 grammar units (present-simple-s, articles-a-an) + all 24 words.
+    // A1 holds 2 grammar units (present-simple-s, articles-a-an) + all 48 words.
     const a1 = map.find((b) => b.band === 'A1')!;
-    assert.strictEqual(a1.units.length, 26);
+    assert.strictEqual(a1.units.length, 50);
     assert.strictEqual(a1.units[0].unit_id, 'grammar:present-simple-s');
     assert.strictEqual(a1.units[1].unit_id, 'word:book');
   });

@@ -6,10 +6,15 @@ import type { GrammarPack } from './types.js';
  * unit ("word:{lemma}") with its primary A1 sense, flowing through the same
  * kernel, planner, review schedule and session UI as grammar units.
  *
+ * Milestone I3 (second batch): 24 more A1 high-frequency words appended AFTER
+ * the first batch, so existing learner order and review states are preserved.
+ * Batch 2 leans towards the owner's goals (medicine/doctor/hospital/price for
+ * the pharmacy and call-centre lines).
+ *
  * Full Word DNA (per-sense mastery, receptive/productive tracks, aural
  * recognition, collocations, provider dictionaries) is designed in the
- * handoff and arrives in later slices; I1 deliberately keeps one word =
- * one unit with the dominant beginner sense.
+ * handoff and arrives in later slices; one word = one unit with the dominant
+ * beginner sense remains the rule for both batches.
  *
  * Everything here is deterministic: no clock, no randomness, no I/O.
  */
@@ -128,6 +133,105 @@ export const WORD_DEFS: readonly WordDef[] = [
     ar: 'كلمة learn تعني «يتعلم»: يكتسب علمًا أو مهارة.',
     example: 'I learn five words every day.',
     mistake: 'نقول learn English للغة، وstudy للدراسة الجادة: study medicine.' },
+
+  // ---- Batch 2 (Milestone I3): 24 more A1 words, appended after batch 1 so
+  // existing orders and review states are preserved. Same WordDef contract.
+  { id: 'time', pos: 'noun', gloss: 'وقت', en: 'hours and minutes',
+    ar: 'كلمة time تعني «وقت».',
+    example: "I don't have time today.",
+    mistake: 'نقول What time is it? للسؤال عن الوقت، ولا نقول How much is the time?' },
+  { id: 'year', pos: 'noun', gloss: 'سنة', en: 'twelve months',
+    ar: 'كلمة year تعني «سنة».',
+    example: 'This year is very hot.',
+    mistake: 'نقول in 2010 بلا the: I was born in 2010.' },
+  { id: 'people', pos: 'noun', gloss: 'ناس', en: 'men, women and children',
+    ar: 'كلمة people تعني «ناس/أشخاص».',
+    example: 'Many people live here.',
+    mistake: 'people جمع أصلًا: نقول many people وليس many peoples.' },
+  { id: 'man', pos: 'noun', gloss: 'رجل', en: 'an adult male person',
+    ar: 'كلمة man تعني «رجل».',
+    example: 'The man works here.',
+    mistake: 'الجمع شاذ: man → men وليس mans.' },
+  { id: 'woman', pos: 'noun', gloss: 'امرأة', en: 'an adult female person',
+    ar: 'كلمة woman تعني «امرأة».',
+    example: 'The woman is my teacher.',
+    mistake: 'الجمع شاذ: woman → women (تُلفظ «ويمِن») وليس womans.' },
+  { id: 'child', pos: 'noun', gloss: 'طفل', en: 'a young boy or girl',
+    ar: 'كلمة child تعني «طفل».',
+    example: 'The child plays in the park.',
+    mistake: 'الجمع شاذ: child → children وليس childs.' },
+  { id: 'name', pos: 'noun', gloss: 'اسم', en: 'what a person is called',
+    ar: 'كلمة name تعني «اسم».',
+    example: 'My name is Ali.',
+    mistake: 'نقول My name is Ali ولا نحذف is: لا نقول My name Ali.' },
+  { id: 'job', pos: 'noun', gloss: 'وظيفة', en: 'the work you do for money',
+    ar: 'كلمة job تعني «وظيفة».',
+    example: 'She has a good job.',
+    mistake: 'job معدودة (a job)، أما work فغير معدود بلا a: نقول a job ولا نقول a work.' },
+  { id: 'teacher', pos: 'noun', gloss: 'مدرّس', en: 'a person who teaches',
+    ar: 'كلمة teacher تعني «مدرّس/معلم».',
+    example: 'The teacher is kind.',
+    mistake: 'نقول my teacher بلا the: لا نقول the my teacher.' },
+  { id: 'doctor', pos: 'noun', gloss: 'طبيب', en: 'a person who treats ill people',
+    ar: 'كلمة doctor تعني «طبيب».',
+    example: 'My doctor is busy today.',
+    mistake: 'نقول I am a doctor وليس I am doctor — a لازمة قبل اسم المهنة.' },
+  { id: 'medicine', pos: 'noun', gloss: 'دواء', en: 'what you take when you are ill',
+    ar: 'كلمة medicine تعني «دواء».',
+    example: 'This medicine is very good.',
+    mistake: 'نقول take medicine بلا a ولا the غالبًا: medicine غير معدودة بمعنى الدواء.' },
+  { id: 'hospital', pos: 'noun', gloss: 'مستشفى', en: 'a place that treats ill people',
+    ar: 'كلمة hospital تعني «مستشفى».',
+    example: 'The hospital is near my house.',
+    mistake: 'نقول go to the hospital للزيارة أو العلاج — استعمل the مع hospital.' },
+  { id: 'phone', pos: 'noun', gloss: 'هاتف', en: 'a thing you call people with',
+    ar: 'كلمة phone تعني «هاتف».',
+    example: 'My phone is new.',
+    mistake: 'أثناء الكلام نقول on the phone وليس in the phone.' },
+  { id: 'price', pos: 'noun', gloss: 'سعر', en: 'the money you pay for a thing',
+    ar: 'كلمة price تعني «سعر».',
+    example: 'The price is too high.',
+    mistake: 'نقول What is the price? أو How much is it? ولا نقول How much is the price?' },
+  { id: 'shop', pos: 'noun', gloss: 'متجر', en: 'a place that sells things',
+    ar: 'كلمة shop تعني «متجر/دكان».',
+    example: 'The shop opens at nine.',
+    mistake: 'shopping تعني «التسوق» وليست جمع shop؛ الجمع shops.' },
+  { id: 'number', pos: 'noun', gloss: 'رقم', en: 'a count like 1, 2, 3',
+    ar: 'كلمة number تعني «رقم».',
+    example: 'My lucky number is seven.',
+    mistake: 'نقول my phone number وليس my number of phone (خطأ ترجمة حرفية).' },
+  { id: 'go', pos: 'verb', gloss: 'يذهب', en: 'to move to another place',
+    ar: 'كلمة go تعني «يذهب».',
+    example: 'I go to work by bus.',
+    mistake: 'نقول go home بلا to (home ظرف)، لكن go to school وgo to work مع to.' },
+  { id: 'come', pos: 'verb', gloss: 'يأتي', en: 'to move to where I am',
+    ar: 'كلمة come تعني «يأتي».',
+    example: 'Please come to my house.',
+    mistake: 'نقول come here بلا to (here ظرف مثل home)، والماضي came.' },
+  { id: 'see', pos: 'verb', gloss: 'يرى', en: 'to notice with your eyes',
+    ar: 'كلمة see تعني «يرى».',
+    example: 'I see my friend every week.',
+    mistake: 'see للرؤية، وwatch للأفلام والمباريات، وlook at للتأمل — العربية تستعمل «شاف» للجميع.' },
+  { id: 'want', pos: 'verb', gloss: 'يريد', en: 'to wish to have or do something',
+    ar: 'كلمة want تعني «يريد».',
+    example: 'I want a new phone.',
+    mistake: 'مع الفعل نقول I want to go وليس I want go — to لازمة بعد want.' },
+  { id: 'need', pos: 'verb', gloss: 'يحتاج', en: 'to have to have something',
+    ar: 'كلمة need تعني «يحتاج».',
+    example: 'I need money for a car.',
+    mistake: 'مثل want: نقول I need to go وليس I need go — to لازمة بعد need.' },
+  { id: 'know', pos: 'verb', gloss: 'يعرف', en: 'to have information in your head',
+    ar: 'كلمة know تعني «يعرف».',
+    example: 'I know the answer.',
+    mistake: 'الماضي knew، ولا نقول I am know — الفعلان be وknow لا يجتمعان.' },
+  { id: 'help', pos: 'verb', gloss: 'يساعد', en: 'to make things easier for someone',
+    ar: 'كلمة help تعني «يساعد».',
+    example: 'I help my mother at home.',
+    mistake: 'نقول Can you help me? — help يأخذ مفعوله مباشرة بلا to.' },
+  { id: 'buy', pos: 'verb', gloss: 'يشتري', en: 'to get a thing with money',
+    ar: 'كلمة buy تعني «يشتري».',
+    example: 'I buy food from this shop.',
+    mistake: "الماضي bought يُلفظ «بوت» (u صامتة)، والنفي didn't buy." },
 ];
 
 export const WORD_COUNT = WORD_DEFS.length;
