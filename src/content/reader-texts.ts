@@ -55,4 +55,33 @@ export const READER_TEXTS: readonly ReaderText[] = [
       'Karim pays with the money from his work and buys the phone. ' +
       'At home he calls his family. I have a new phone, he says. Come and see me!',
   },
+  {
+    id: 'hospital-night',
+    title: 'A night at the hospital',
+    text:
+      'Youssef is a doctor. He works at night in a hospital near the city. ' +
+      'Last week a man came with his child at ten in the night. ' +
+      'The child ate bad food and drank dirty water, and the man was afraid. ' +
+      'The doctor saw the child and asked the man many questions. ' +
+      'Then he said: It is not the food. The child needs water and rest, ' +
+      'and this medicine after food. The man bought the medicine at the hospital shop. ' +
+      'The child drank it and slept. In the morning the child was well again. ' +
+      'The man went home happy and said: Thank you, doctor. You help people every night.',
+  },
+  {
+    id: 'help-line',
+    title: 'A call to the help line',
+    text:
+      'Layla answers the phone at a help line in Cairo. ' +
+      'People call every day with a question or a problem. ' +
+      'Yesterday was a long day. First a man wanted help with his phone. ' +
+      'The price of a new phone is high, so Layla helped him fix his old one. ' +
+      'Then a woman came with a question about her job. ' +
+      'Then a father called: his child needed a doctor, and the hospital was full. ' +
+      'Layla wrote the name and the number, and a doctor from the hospital came to the house. ' +
+      'In the evening a friend saw Layla at the shop and said: ' +
+      'You help people all day. Do you like the work? ' +
+      'Layla said: Yes. Every call is a new door, and I know the city now. ' +
+      'Come and see us at the help line!',
+  },
 ];

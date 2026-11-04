@@ -1,4 +1,4 @@
-# Smart Reader (Milestone J1)
+# Smart Reader (Milestone J1 + J2)
 
 ## English
 
@@ -17,17 +17,20 @@ common-mistake note for the 48 curriculum words, plus the real dictionary
 section (Free Dictionary API with the permanent on-device cache, from
 Milestone I2) for every word.
 
-What J1 deliberately does NOT do (recorded limits):
+What the reader deliberately does NOT do (recorded limits):
 
 - Reading records **no evidence events** yet (the reading evidence
   taxonomy is a later, designed addition; reading is consumption here).
-- Irregular forms ("went", "children") do not match their base unit;
-  only conservative regular suffixes (-s/-es/-ies/-ed) are normalized.
+- Normalization stays conservative: a hand-picked irregular map (J2:
+  "went"→go, "children"→child, ...) covers only forms whose base is one of
+  the 48 curriculum words, plus regular suffixes (-s/-es/-ies/-ed).
+  Unknown irregulars and all **-ing forms** still do not match.
 - The chosen text is a UI preference saved in `localStorage`
   (`elos_reader_doc`), never learning data, never synced.
 
 Files: `src/app/reader.ts` (pure logic), `src/content/reader-texts.ts`
-(four original A1 texts), `src/ui/screens/reader.ts` (screen),
+(six original A1 texts; the two J2 texts use past tenses and irregular
+plurals on purpose), `src/ui/screens/reader.ts` (screen),
 `src/ui/screens/backupTools.ts` (extracted from main.ts to respect the
 400-line rule), `tests/reader.test.ts`.
 
@@ -45,6 +48,8 @@ Files: `src/app/reader.ts` (pure logic), `src/content/reader-texts.ts`
 الخطأ الشائع لكلمات المنهج الـ48، وقسم القاموس الحقيقي (Free Dictionary
 API مع الكاش الدائم على الجهاز من مرحلة I2) لكل كلمة.
 
-حدود مقصودة مسجلة: القراءة لا تسجل أحداث أدلة بعد؛ الصيغ الشاذة
-(went/children) لا تطابق وحدة الكلمة الأساسية؛ النص المحفوظ تفضيل واجهة
-في localStorage وليس بيانات تعلم ولا يُزامن.
+حدود مقصودة مسجلة: القراءة لا تسجل أحداث أدلة بعد؛ التطبيع محافظ — خريطة
+صيغ شاذة مختارة يدويًا (J2: went→go وchildren→child وغيرها) تغطي فقط
+الصيغ التي أصلها من كلمات المنهج الـ48، مع اللواحق المنتظمة (-s/-es/-ies/-ed)،
+وبقية الشواذ وصيغ -ing لا تطابق بعد؛ النص المحفوظ تفضيل واجهة في
+localStorage وليس بيانات تعلم ولا يُزامن.

@@ -10,10 +10,12 @@ import { CURRICULUM, PLANNER_CONFIG } from './curriculum.js';
  * progress map uses - one source of truth: the evidence log.
  *
  * Two keys per token: dictKey is the trimmed lowercase token (what the
- * dictionary provider should look up), and key adds a conservative suffix
- * normalizer (-s/-es/-ies/-ed) so inflected forms still match their base
- * unit ("works" matches "work"). Irregular forms ("went", "children") do
- * not match in this slice; tapping them still opens the dictionary.
+ * dictionary provider should look up), and key adds a conservative
+ * normalizer: a hand-picked irregular map ("went" matches "go", "children"
+ * matches "child") plus regular suffix stripping (-s/-es/-ies/-ed) so
+ * inflected forms still match their base unit ("works" matches "work").
+ * Every irregular value is a curriculum lemma; everything else stays as-is
+ * and tapping still opens the dictionary.
  *
  * Reading itself is receptive consumption and records NO evidence events
  * in this slice (the reading evidence taxonomy is a later, designed
@@ -38,6 +40,35 @@ export interface ReaderToken {
 const PACK_KEEP = new Set(['people']);
 
 /**
+ * Irregular inflections whose base is one of the 48 curriculum words, so
+ * past tenses and irregular plurals still light up the base unit's color.
+ * Conservatively hand-picked: every value is a word-pack lemma and every
+ * entry is unambiguous. Regular forms keep using the suffix normalizer.
+ */
+const PACK_IRREGULAR: Record<string, string> = {
+  went: 'go',
+  gone: 'go',
+  came: 'come',
+  saw: 'see',
+  seen: 'see',
+  bought: 'buy',
+  knew: 'know',
+  known: 'know',
+  ate: 'eat',
+  eaten: 'eat',
+  drank: 'drink',
+  drunk: 'drink',
+  wrote: 'write',
+  written: 'write',
+  spoke: 'speak',
+  spoken: 'speak',
+  learnt: 'learn',
+  men: 'man',
+  women: 'woman',
+  children: 'child',
+};
+
+/**
  * The dictionary key of a raw token: lowercase, curly apostrophes folded,
  * trimmed of non-letter edges, inner letters and apostrophes kept
  * ("don't" stays "don't"). Returns null for tokens without letters.
@@ -51,11 +82,15 @@ export function wordKey(raw: string): string | null {
 }
 
 /**
- * Conservative suffix normalizer so inflected tokens match their base
- * unit. Only regular, unambiguous suffixes are stripped; everything else
- * (irregulars, -ing forms) is left as-is and simply stays unmatched.
+ * Conservative normalizer so inflected tokens match their base unit.
+ * The irregular map is checked first (it holds short forms like "men" that
+ * the length guard would reject), then only regular, unambiguous suffixes
+ * are stripped; everything else (-ing forms, unknown irregulars) is left
+ * as-is and simply stays unmatched.
  */
 export function normalizeForPack(key: string): string {
+  const irregular = PACK_IRREGULAR[key];
+  if (irregular !== undefined) return irregular;
   if (PACK_KEEP.has(key) || key.length < 4) return key;
   if (/(ies|ied)$/.test(key) && key.length >= 5) return key.slice(0, -3) + 'y';
   if (/oes$/.test(key)) return key.slice(0, -2);

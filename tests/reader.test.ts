@@ -62,8 +62,54 @@ describe('ELOS Milestone J1 - reader tokenization', () => {
     assert.strictEqual(normalizeForPack('medicine'), 'medicine');
     assert.strictEqual(normalizeForPack('morning'), 'morning');
     assert.strictEqual(normalizeForPack('reading'), 'reading');
-    assert.strictEqual(normalizeForPack('went'), 'went');
-    assert.strictEqual(normalizeForPack('children'), 'children');
+    assert.strictEqual(normalizeForPack('went'), 'go');
+    assert.strictEqual(normalizeForPack('children'), 'child');
+  });
+
+  it('normalizeForPack: the irregular map matches past tenses and plural forms to pack lemmas', () => {
+    assert.strictEqual(normalizeForPack('went'), 'go');
+    assert.strictEqual(normalizeForPack('gone'), 'go');
+    assert.strictEqual(normalizeForPack('came'), 'come');
+    assert.strictEqual(normalizeForPack('saw'), 'see');
+    assert.strictEqual(normalizeForPack('seen'), 'see');
+    assert.strictEqual(normalizeForPack('bought'), 'buy');
+    assert.strictEqual(normalizeForPack('knew'), 'know');
+    assert.strictEqual(normalizeForPack('known'), 'know');
+    assert.strictEqual(normalizeForPack('ate'), 'eat');
+    assert.strictEqual(normalizeForPack('eaten'), 'eat');
+    assert.strictEqual(normalizeForPack('drank'), 'drink');
+    assert.strictEqual(normalizeForPack('drunk'), 'drink');
+    assert.strictEqual(normalizeForPack('wrote'), 'write');
+    assert.strictEqual(normalizeForPack('written'), 'write');
+    assert.strictEqual(normalizeForPack('spoke'), 'speak');
+    assert.strictEqual(normalizeForPack('spoken'), 'speak');
+    assert.strictEqual(normalizeForPack('learnt'), 'learn');
+    assert.strictEqual(normalizeForPack('men'), 'man');
+    assert.strictEqual(normalizeForPack('women'), 'woman');
+    assert.strictEqual(normalizeForPack('children'), 'child');
+    // The irregular map never fires for tokens that are not in it.
+    assert.strictEqual(normalizeForPack('wants'), 'want');
+    assert.strictEqual(normalizeForPack('buying'), 'buying');
+    assert.strictEqual(normalizeForPack('good'), 'good');
+  });
+
+  it('the irregular map only points at real word-pack lemmas, with clean lowercase keys', () => {
+    const packWords = new Set(WORD_PACK.units.map((u) => u.id.slice('word:'.length)));
+    const tokens = tokenizeText('went gone came saw seen bought knew known ate eaten drank drunk wrote written spoke spoken learnt men women children');
+    const irregularKeys = tokens.map((t) => t.dictKey).filter((k) => k !== null) as string[];
+    assert.strictEqual(irregularKeys.length, 20);
+    for (const token of tokens) {
+      assert.notStrictEqual(token.key, token.dictKey, token.raw);
+      assert.ok(packWords.has(token.key as string), `${token.raw} -> ${token.key}`);
+    }
+  });
+
+  it('tokenizeText: an irregular token keeps its dictKey but matches the base unit', () => {
+    const tokens = tokenizeText('Yesterday he went home and bought food.');
+    assert.strictEqual(tokens[2].raw, 'went');
+    assert.strictEqual(tokens[2].dictKey, 'went');
+    assert.strictEqual(tokens[2].key, 'go');
+    assert.strictEqual(tokens[5].key, 'buy');
   });
 
   it('tokenizeText: splits on whitespace, pairs raw with keys, never empty', () => {
@@ -165,8 +211,8 @@ describe('ELOS Milestone J1 - reader document persistence format', () => {
 });
 
 describe('ELOS Milestone J1 - the curated reading texts', () => {
-  it('ships four unique A1 texts, long enough to read', () => {
-    assert.strictEqual(READER_TEXTS.length, 4);
+  it('ships six unique A1 texts, long enough to read', () => {
+    assert.strictEqual(READER_TEXTS.length, 6);
     const ids = new Set(READER_TEXTS.map((t) => t.id));
     assert.strictEqual(ids.size, READER_TEXTS.length);
     for (const text of READER_TEXTS) {
