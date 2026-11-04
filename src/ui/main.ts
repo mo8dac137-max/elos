@@ -1,12 +1,10 @@
 import {
   createClient, ClientState, activeEvents, deriveFromClient, deriveReviewInfo,
 } from '../kernel/index.js';
-import { Exercise, GeneratorContext, serializeState } from '../app/index.js';
+import { Exercise, GeneratorContext } from '../app/index.js';
 import { CURRICULUM, PLANNER_CONFIG, findUnitDef, unitTitle } from '../app/curriculum.js';
 import { startSession, nextExercise, needsIntro, summarizeSession, UnitSummary } from '../app/session.js';
-import { buildBackup, parseBackup, mergeBackup } from '../app/backup.js';
 import { IndexedDbClientStore } from './indexedDbStore.js';
-import { copyTextToClipboard } from './screens/clipboard.js';
 import { renderCorruptScreen } from './screens/corrupt.js';
 import { createStatusBlock } from './screens/statusBlock.js';
 import { renderHome } from './screens/home.js';
@@ -21,7 +19,8 @@ import { signIn, SignInError, AuthSession } from '../sync/auth.js';
 import { runSync, SyncOutcome } from '../sync/sync.js';
 import { loadAuthSession, saveAuthSession, getLastSyncedAt, setLastSyncedAt } from './authStore.js';
 import { createSyncBar } from './screens/syncBar.js';
-import { sha256HexViaSubtle, downloadBackupFile, pickBackupFile } from './backupIo.js';
+import { createBackupButton, createBackupTools } from './screens/backupTools.js';
+import { renderReader } from './screens/reader.js';
 import { callAi } from '../ai/gateway.js';
 import { explainUnit } from '../ai/explain.js';
 import { createAiCard } from './screens/aiCard.js';
@@ -32,7 +31,6 @@ let currentState: ClientState | null = null;
 let currentAuth: AuthSession | null = null;
 let progressUnitId: string | null = null;
 let isSyncing = false;
-let backupNotice = '';
 
 interface SessionRun {
   tasks: ReturnType<typeof startSession>;
@@ -71,20 +69,6 @@ function allUnitSummaries(state: ClientState): UnitSummary[] {
   }));
 }
 
-function makeBackupButton(): HTMLButtonElement {
-  const backupBtn = document.createElement('button');
-  backupBtn.className = 'btn backup-btn';
-  backupBtn.textContent = 'Copy backup (JSON)';
-  backupBtn.onclick = () => {
-    if (currentState) {
-      const jsonStr = serializeState(currentState);
-      const host = backupBtn.parentElement || document.body;
-      copyTextToClipboard(jsonStr, host as HTMLElement, backupBtn, 'Copied to clipboard');
-    }
-  };
-  return backupBtn;
-}
-
 function makeInstallElement(): HTMLElement {
   const installContainer = document.createElement('div');
   installContainer.style.marginTop = '8px';
@@ -101,66 +85,6 @@ function makeInstallElement(): HTMLElement {
     }
   });
   return installContainer;
-}
-
-function makeBackupTools(): HTMLElement {
-  const container = document.createElement('div');
-  container.className = 'backup-tools';
-  const row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
-  const notice = document.createElement('div');
-  notice.className = 'notice-line';
-  notice.textContent = backupNotice;
-  const setMsg = (msg: string) => { backupNotice = msg; notice.textContent = msg; };
-
-  const exportBtn = document.createElement('button');
-  exportBtn.className = 'btn';
-  exportBtn.textContent = 'Export backup';
-  exportBtn.onclick = async () => {
-    if (!currentState) return;
-    setMsg('');
-    exportBtn.disabled = true;
-    try {
-      const b = await buildBackup(currentState, nowIso(), sha256HexViaSubtle);
-      downloadBackupFile(b);
-      setMsg('Backup exported (' + b.event_count + ' events).');
-    } catch (err) {
-      setMsg('Export failed: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      exportBtn.disabled = false;
-    }
-  };
-
-  const importBtn = document.createElement('button');
-  importBtn.className = 'btn';
-  importBtn.textContent = 'Import backup';
-  importBtn.onclick = async () => {
-    setMsg('');
-    importBtn.disabled = true;
-    try {
-      const raw = await pickBackupFile();
-      if (raw === null) return;
-      if (!currentState) { setMsg('Import failed: no local state'); return; }
-      const parsed = await parseBackup(raw, sha256HexViaSubtle);
-      if (parsed.kind === 'invalid') { setMsg('Import failed: ' + parsed.reason); return; }
-      const m = mergeBackup(currentState, parsed.backup);
-      currentState = m.state;
-      await store.save(currentState);
-      setMsg('Imported: added ' + m.added + ', merged ' + m.merged + '.');
-      showHome();
-      if (currentAuth !== null) performSync().catch(() => {});
-    } catch (err) {
-      setMsg('Import failed: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      importBtn.disabled = false;
-    }
-  };
-
-  row.appendChild(exportBtn);
-  row.appendChild(importBtn);
-  container.appendChild(row);
-  container.appendChild(notice);
-  return container;
 }
 
 async function performSync(): Promise<SyncOutcome> {
@@ -222,11 +146,17 @@ function showHome(): void {
     statusElement: statusController.element,
     syncBarElement: syncBar.element,
     aiCardElement: aiCard.element,
-    backupButton: makeBackupButton(),
-    backupToolsElement: makeBackupTools(),
+    backupButton: createBackupButton({ getState: () => currentState }),
+    backupToolsElement: createBackupTools({
+      getState: () => currentState,
+      applyState: async (s) => { currentState = s; await store.save(s); },
+      showHome: () => showHome(),
+      onMaybeSync: () => { if (currentAuth !== null) void performSync().catch(() => {}); },
+    }),
     installElement: makeInstallElement(),
     onStartSession: (size) => startSessionFlow(size),
     onOpenProgress: () => { progressUnitId = null; showProgress(); },
+    onOpenReader: () => showReader(),
   });
 }
 
@@ -346,6 +276,14 @@ function showProgress(): void {
       progressUnitId = unitId;
       showProgress();
     },
+  });
+}
+
+function showReader(): void {
+  const root = document.getElementById('root') || document.body;
+  renderReader(root, {
+    getState: () => currentState,
+    onBack: () => showHome(),
   });
 }
 

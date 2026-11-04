@@ -268,6 +268,72 @@
         color: #999999;
         font-size: 16px;
       }
+      .reader-para {
+        font-size: 17px;
+        line-height: 2.1;
+        color: #d8d8d8;
+        margin-top: 10px;
+      }
+      .reader-word {
+        background: none;
+        border: none;
+        padding: 0 1px;
+        color: inherit;
+        font: inherit;
+        line-height: inherit;
+        cursor: pointer;
+        border-bottom: 2px solid #333333;
+      }
+      .reader-word:focus-visible {
+        outline: 2px solid #7aa2ff;
+        outline-offset: 1px;
+      }
+      .reader-word.reader-known {
+        color: #55dd77;
+        border-bottom-color: #2c5c38;
+      }
+      .reader-word.reader-learning {
+        color: #e8c46b;
+        border-bottom-color: #6b5a2c;
+      }
+      .reader-word.reader-new {
+        color: #7aa2ff;
+        border-bottom-color: #2c3d5c;
+      }
+      .reader-word.reader-outside {
+        color: #d8d8d8;
+        border-bottom-color: #333333;
+      }
+      .reader-summary {
+        color: #999999;
+        font-size: 15px;
+        margin-top: 6px;
+      }
+      .reader-tools {
+        margin-top: 12px;
+      }
+      .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 14px;
+        color: #999999;
+      }
+      .legend-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        flex: none;
+      }
+      .dot-known { background: #55dd77; }
+      .dot-learning { background: #e8c46b; }
+      .dot-new { background: #7aa2ff; }
+      .word-popup {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
     </style>
   </head>
   <body>

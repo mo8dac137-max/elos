@@ -27,6 +27,7 @@ export interface HomeDeps {
   installElement: HTMLElement;
   onStartSession: (size: number) => void;
   onOpenProgress: () => void;
+  onOpenReader: () => void;
 }
 
 export function renderHome(root: HTMLElement, deps: HomeDeps): void {
@@ -118,6 +119,7 @@ export function renderHome(root: HTMLElement, deps: HomeDeps): void {
     createButton('Start session', () => deps.onStartSession(selectedSize), 'btn-primary')
   );
   container.appendChild(createButton('Progress map', deps.onOpenProgress));
+  container.appendChild(createButton('Read', deps.onOpenReader));
   container.appendChild(deps.backupButton);
   container.appendChild(deps.backupToolsElement);
   container.appendChild(deps.installElement);
