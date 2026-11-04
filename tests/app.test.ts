@@ -52,7 +52,7 @@ describe('ELOS App & Exercise Logic - Milestone F3', () => {
   it('EXERCISE_BANK: grammar items first (mirroring GRAMMAR_PACK), then word-pack items', () => {
     assert.strictEqual(GRAMMAR_PACK.items.length, 88);
     assert.strictEqual(EXERCISE_BANK.length, GRAMMAR_PACK.items.length + WORD_PACK.items.length);
-    assert.strictEqual(EXERCISE_BANK.length, 232);
+    assert.strictEqual(EXERCISE_BANK.length, 304);
 
     for (let i = 0; i < GRAMMAR_PACK.items.length; i++) {
       const item = GRAMMAR_PACK.items[i];
@@ -473,7 +473,7 @@ describe('ELOS App & Exercise Logic - Milestone F3', () => {
 
   it('curriculum: grammar and words interleaved (order = array index); unitTitle falls back to the id', () => {
     assert.strictEqual(CURRICULUM.length, GRAMMAR_PACK.units.length + WORD_PACK.units.length);
-    assert.strictEqual(CURRICULUM.length, 59);
+    assert.strictEqual(CURRICULUM.length, 83);
     // Grammar units on the even slots in pack order, words on the odd slots
     // (after the grammar pack runs out, the remaining words fill sequentially).
     for (let i = 0; i < GRAMMAR_PACK.units.length; i++) {

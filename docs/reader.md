@@ -13,7 +13,7 @@ unit = one color):
 - **Plain** = outside the course (still tappable)
 
 Tapping a word opens a card: the derived state, the Arabic gloss and the
-common-mistake note for the 48 curriculum words, plus the real dictionary
+common-mistake note for the 72 curriculum words, plus the real dictionary
 section (Free Dictionary API with the permanent on-device cache, from
 Milestone I2) for every word.
 
@@ -23,7 +23,7 @@ What the reader deliberately does NOT do (recorded limits):
   taxonomy is a later, designed addition; reading is consumption here).
 - Normalization stays conservative: a hand-picked irregular map (J2:
   "went"→go, "children"→child, ...) covers only forms whose base is one of
-  the 48 curriculum words, plus regular suffixes (-s/-es/-ies/-ed).
+  the 72 curriculum words, plus regular suffixes (-s/-es/-ies/-ed).
   Unknown irregulars and all **-ing forms** still do not match.
 - The chosen text is a UI preference saved in `localStorage`
   (`elos_reader_doc`), never learning data, never synced.

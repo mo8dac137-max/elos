@@ -9,9 +9,9 @@ import { createClient } from '../src/kernel/index.js';
 
 const ARABIC = /[\u0600-\u06FF]/;
 
-describe('ELOS Milestones I1 + I3 - vocabulary packs (two batches)', () => {
-  it('structure: 48 unique words (batch 1 + batch 2), valid pos, Arabic glosses, English examples containing the lemma exactly once', () => {
-    assert.strictEqual(WORD_COUNT, 48);
+describe('ELOS vocabulary packs - batches 1 + 2 + 3 (I1, I3, K1)', () => {
+  it('structure: 72 unique words in three appended batches, valid pos, Arabic glosses, English examples containing the lemma exactly once', () => {
+    assert.strictEqual(WORD_COUNT, 72);
     const ids = new Set<string>();
     for (const def of WORD_DEFS) {
       assert.ok(/^[a-z]+$/.test(def.id), `lemma must be lowercase letters: ${def.id}`);
@@ -99,6 +99,18 @@ describe('ELOS Milestones I1 + I3 - vocabulary packs (two batches)', () => {
     }
   });
 
+  it('batch 3 lands after batch 2 with its researched service and health words', () => {
+    const ids = WORD_DEFS.map((w) => w.id);
+    const batch3 = ids.slice(48);
+    assert.strictEqual(batch3.length, 24);
+    for (const expected of ['thing', 'customer', 'message', 'problem', 'pain', 'make', 'take', 'call', 'wait', 'hour', 'minute', 'month']) {
+      assert.ok(batch3.includes(expected), `batch 3 must contain ${expected}`);
+    }
+    // No gloss duplicates across the whole pack (distractors stay unique).
+    const glosses = WORD_DEFS.map((w) => w.gloss);
+    assert.strictEqual(new Set(glosses).size, glosses.length, 'glosses must be unique');
+  });
+
   it('merged curriculum: grammar and words interleaved, orders 0..N, lookups find both', () => {
     assert.strictEqual(CURRICULUM.length, GRAMMAR_PACK.units.length + WORD_COUNT);
 
@@ -136,9 +148,9 @@ describe('ELOS Milestones I1 + I3 - vocabulary packs (two batches)', () => {
     assert.deepStrictEqual(bookEntry.due, { kind: 'not_started' });
 
     // Interleaved: word:book sits right after the first grammar unit.
-    // A1 holds 2 grammar units (present-simple-s, articles-a-an) + all 48 words.
+    // A1 holds 2 grammar units (present-simple-s, articles-a-an) + all 72 words.
     const a1 = map.find((b) => b.band === 'A1')!;
-    assert.strictEqual(a1.units.length, 50);
+    assert.strictEqual(a1.units.length, 74);
     assert.strictEqual(a1.units[0].unit_id, 'grammar:present-simple-s');
     assert.strictEqual(a1.units[1].unit_id, 'word:book');
   });
