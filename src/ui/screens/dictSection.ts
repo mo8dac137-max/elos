@@ -4,7 +4,6 @@ import type { DictProvider, DictFetch } from '../../dict/provider.js';
 import { FreeDictionaryProvider } from '../../dict/provider.js';
 import { getDictCache } from '../../dict/cache.js';
 import { createButton, createSectionLabel } from './common.js';
-
 /**
  * Milestone I2: the rich word card. A self-loading "Dictionary" section
  * for word units only: the permanent cache answers first (instant, works
@@ -13,7 +12,6 @@ import { createButton, createSectionLabel } from './common.js';
  * blocks the rest of the unit card. Dictionary text is reference content,
  * not learning evidence, and needs no sign-in (the provider is keyless).
  */
-
 export interface DictSectionDeps {
   /** Defaults to the shared IndexedDB dictionary cache. */
   cache?: DictCache;
@@ -29,7 +27,6 @@ export function createDictSection(
 ): HTMLElement | null {
   if (!unitId.startsWith('word:')) return null;
   const word = unitId.slice('word:'.length);
-
   const cache = deps.cache ?? getDictCache();
   const provider =
     deps.provider ?? new FreeDictionaryProvider(deps.fetchImpl ?? fetch);
@@ -37,7 +34,6 @@ export function createDictSection(
   const section = document.createElement('div');
   section.className = 'dict-section';
   section.appendChild(createSectionLabel('Dictionary'));
-
   const content = document.createElement('div');
   const loading = document.createElement('div');
   loading.className = 'notice-line';
@@ -52,7 +48,6 @@ export function createDictSection(
   }
 
   void load();
-
   async function load(): Promise<void> {
     try {
       const cached = await cache.get(word);
@@ -63,7 +58,6 @@ export function createDictSection(
     } catch {
       // Cache read failure is non-fatal: fall through to the network.
     }
-
     const outcome = await provider.lookup(word);
     if (outcome.status === 'ok') {
       try {
@@ -79,10 +73,8 @@ export function createDictSection(
 
   function renderEntry(entry: DictEntry, fromCache: boolean): void {
     content.textContent = '';
-
     const head = document.createElement('div');
-    head.className = 'summary-en';
-    head.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+    head.className = 'summary-en dict-entry-head';
     if (entry.phonetic !== null) {
       const ph = document.createElement('span');
       ph.textContent = entry.phonetic;
@@ -91,21 +83,17 @@ export function createDictSection(
     if (entry.audioUrl !== null) {
       const audioBtn = createButton('Play audio', () => {
         playAudio(entry.audioUrl as string, audioBtn);
-      });
-      audioBtn.style.minHeight = '32px';
-      audioBtn.style.padding = '4px 12px';
+      }, 'dict-audio-btn');
       head.appendChild(audioBtn);
     }
     if (head.childElementCount > 0) {
       content.appendChild(head);
     }
-
     for (const meaning of entry.meanings) {
       const posLabel = document.createElement('div');
       posLabel.className = 'section-label';
       posLabel.textContent = meaning.partOfSpeech;
       content.appendChild(posLabel);
-
       const list = document.createElement('ul');
       list.className = 'example-list';
       for (const def of meaning.definitions) {
@@ -120,16 +108,13 @@ export function createDictSection(
       }
       content.appendChild(list);
     }
-
     const source = document.createElement('div');
-    source.className = 'due-line';
-    source.style.marginTop = '6px';
+    source.className = 'due-line dict-source';
     source.textContent = fromCache
       ? 'Source: Free Dictionary API (cached on this device)'
       : 'Source: Free Dictionary API';
     content.appendChild(source);
   }
-
   function playAudio(url: string, audioBtn: HTMLButtonElement): void {
     audioBtn.disabled = true;
     try {
@@ -154,7 +139,6 @@ export function createDictSection(
       showNotice('Audio could not play on this device.');
     }
   }
-
   function showNotice(text: string): void {
     clearLoading();
     const line = document.createElement('div');
@@ -162,7 +146,6 @@ export function createDictSection(
     line.textContent = text;
     content.appendChild(line);
   }
-
   function showOutcome(outcome: DictOutcome): void {
     if (outcome.status === 'not_found') {
       showNotice(`No dictionary entry for «${word}».`);
@@ -176,6 +159,5 @@ export function createDictSection(
       }
     }
   }
-
   return section;
 }
