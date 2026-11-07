@@ -21,7 +21,6 @@ import {
   createRtlBlock,
   createSectionLabel,
 } from './common.js';
-
 /**
  * Milestone J1 (Smart Reader, first slice): paste or pick a short English
  * text and read it with every word colored by the state derived from the
@@ -31,7 +30,6 @@ import {
  */
 
 const READER_DOC_KEY = 'elos_reader_doc';
-
 export interface ReaderDeps {
   getState: () => ClientState | null;
   onBack: () => void;
@@ -53,40 +51,49 @@ function saveDoc(doc: ReaderDoc): void {
     // Storage unavailable: the text simply is not remembered.
   }
 }
-
 const STATE_LABEL: Record<ReaderWordState, string> = {
   known: 'known — strong evidence in your log',
   learning: 'learning — you started this word',
   new: 'new — in your course, not started yet',
   outside: 'outside your course',
 };
-
-function legendRow(colorClass: string, label: string): HTMLElement {
+function legendRow(markerClass: string, label: string): HTMLElement {
   const row = document.createElement('div');
   row.className = 'legend-row';
-  const dot = document.createElement('span');
-  dot.className = 'legend-dot' + (colorClass ? ' ' + colorClass : '');
-  row.appendChild(dot);
+  const mark = document.createElement('span');
+  mark.className = 'legend-mark ' + markerClass;
+  mark.setAttribute('aria-hidden', 'true');
+  row.appendChild(mark);
   const text = document.createElement('span');
   text.textContent = label;
   row.appendChild(text);
   return row;
 }
-
 export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
   root.textContent = '';
   const container = createContainer();
   container.appendChild(createHeader('Read'));
   container.appendChild(createButton('Back', deps.onBack));
-
   const legend = createCard('reader-legend');
   legend.appendChild(createSectionLabel('Word colors'));
-  legend.appendChild(legendRow('dot-known', 'Green: known — strong evidence in your log'));
-  legend.appendChild(legendRow('dot-learning', 'Yellow: learning — you started this word'));
-  legend.appendChild(legendRow('dot-new', 'Blue: new — in your course, not started yet'));
-  legend.appendChild(legendRow('', 'Plain: outside your course (tap for the dictionary)'));
+  const legendNote = document.createElement('p');
+  legendNote.className = 'reader-legend-note';
+  legendNote.textContent =
+    'Color shows each learning state; underline patterns keep all four states distinct without color.';
+  legend.appendChild(legendNote);
+  legend.appendChild(
+    legendRow('mark-known', 'Green + solid underline: known — strong evidence in your log')
+  );
+  legend.appendChild(
+    legendRow('mark-learning', 'Yellow + dashed underline: learning — you started this word')
+  );
+  legend.appendChild(
+    legendRow('mark-new', 'Blue + dotted underline: new — in your course, not started yet')
+  );
+  legend.appendChild(
+    legendRow('mark-outside', 'Plain + double underline: outside your course (tap for the dictionary)')
+  );
   container.appendChild(legend);
-
   const wordCardSlot = document.createElement('div');
   wordCardSlot.className = 'word-card-slot';
   // Attached immediately: showDoc (saved-text path) inserts before it.
@@ -94,7 +101,6 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
 
   const state = deps.getState();
   const states = state ? deriveReaderStates(state) : new Map<string, ReaderWordState>();
-
   function changeText(): void {
     try {
       localStorage.removeItem(READER_DOC_KEY);
@@ -111,7 +117,6 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
     title.className = 'unit-title';
     title.textContent = doc.title;
     card.appendChild(title);
-
     const tokens = tokenizeText(doc.text);
     const tally = countTokenStates(tokens, states);
     const summary = document.createElement('div');
@@ -122,7 +127,6 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
       tally.learning + ' learning, ' +
       tally.new + ' new.';
     card.appendChild(summary);
-
     for (const paragraph of doc.text.split(/\n+/)) {
       if (paragraph.trim().length === 0) continue;
       const p = document.createElement('p');
@@ -141,7 +145,6 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
     card.appendChild(tools);
     container.insertBefore(card, wordCardSlot);
   }
-
   function tokenNode(token: ReaderToken): HTMLElement {
     if (token.key === null) {
       const span = document.createElement('span');
@@ -156,7 +159,6 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
     btn.onclick = () => showWordCard(token, wordState);
     return btn;
   }
-
   function showWordCard(token: ReaderToken, wordState: ReaderWordState): void {
     const key = token.key as string;
     wordCardSlot.textContent = '';
@@ -166,12 +168,10 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
     head.className = 'unit-title';
     head.textContent = token.raw === key ? key : token.raw + '  \u2192  ' + key;
     card.appendChild(head);
-
     const stateLine = document.createElement('div');
     stateLine.className = 'due-line';
     stateLine.textContent = 'State: ' + STATE_LABEL[wordState] + '.';
     card.appendChild(stateLine);
-
     const def = WORD_DEFS.find((w) => w.id === key);
     if (def) {
       card.appendChild(createSectionLabel('Meaning'));
@@ -188,14 +188,12 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
         card.appendChild(createSectionLabel('Course: ' + openUnit.title));
       }
     }
-
     const dict = createDictSection('word:' + (token.dictKey ?? key));
     if (dict) card.appendChild(dict);
     card.appendChild(createButton('Close', () => { wordCardSlot.textContent = ''; }));
     wordCardSlot.appendChild(card);
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-
   const saved = loadSavedDoc();
   if (saved) {
     showDoc(saved);
@@ -223,6 +221,5 @@ export function renderReader(root: HTMLElement, deps: ReaderDeps): void {
     );
     container.appendChild(chooser);
   }
-
   root.appendChild(container);
 }

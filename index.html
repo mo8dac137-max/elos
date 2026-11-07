@@ -291,12 +291,12 @@
         background: none;
         border: none;
         min-height: 48px;
-        padding: 5px 1px;
+        padding: 4.5px 1px;
         color: inherit;
         font: inherit;
         line-height: inherit;
         cursor: pointer;
-        border-bottom: 2px solid #333333;
+        border-bottom: 3px solid #d8d8d8;
       }
       .reader-word:focus-visible {
         outline: 2px solid #7aa2ff;
@@ -304,19 +304,23 @@
       }
       .reader-word.reader-known {
         color: #55dd77;
-        border-bottom-color: #2c5c38;
+        border-bottom-color: #55dd77;
+        border-bottom-style: solid;
       }
       .reader-word.reader-learning {
         color: #e8c46b;
-        border-bottom-color: #6b5a2c;
+        border-bottom-color: #e8c46b;
+        border-bottom-style: dashed;
       }
       .reader-word.reader-new {
         color: #7aa2ff;
-        border-bottom-color: #2c3d5c;
+        border-bottom-color: #7aa2ff;
+        border-bottom-style: dotted;
       }
       .reader-word.reader-outside {
         color: #d8d8d8;
-        border-bottom-color: #333333;
+        border-bottom-color: #d8d8d8;
+        border-bottom-style: double;
       }
       .reader-summary {
         color: #999999;
@@ -326,6 +330,12 @@
       .reader-tools {
         margin-top: 12px;
       }
+      .reader-legend-note {
+        color: #999999;
+        font-size: 14px;
+        line-height: 1.6;
+        margin-top: 6px;
+      }
       .legend-row {
         display: flex;
         align-items: center;
@@ -334,15 +344,29 @@
         font-size: 14px;
         color: #999999;
       }
-      .legend-dot {
-        width: 14px;
-        height: 14px;
-        border-radius: 3px;
+      .legend-mark {
+        display: inline-block;
+        width: 32px;
+        height: 12px;
+        border-bottom: 3px solid #d8d8d8;
         flex: none;
       }
-      .dot-known { background: #55dd77; }
-      .dot-learning { background: #e8c46b; }
-      .dot-new { background: #7aa2ff; }
+      .mark-known {
+        border-bottom-color: #55dd77;
+        border-bottom-style: solid;
+      }
+      .mark-learning {
+        border-bottom-color: #e8c46b;
+        border-bottom-style: dashed;
+      }
+      .mark-new {
+        border-bottom-color: #7aa2ff;
+        border-bottom-style: dotted;
+      }
+      .mark-outside {
+        border-bottom-color: #d8d8d8;
+        border-bottom-style: double;
+      }
       .word-popup {
         display: flex;
         flex-direction: column;
